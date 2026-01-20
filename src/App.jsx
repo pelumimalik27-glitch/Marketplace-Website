@@ -22,7 +22,6 @@ import SellerOrders from './Pages/Seller/SellerOrders';
 import SellerAnalytics from './Pages/Seller/SellerAnalytics';
 import SellerPayouts from './Pages/Seller/SellerPayouts';
 import SellerMessages from './Pages/Seller/SellerMessage';
-import SellerCustomers from './Pages/Seller/Sellerscustomers';
 import SellerSettings from './Pages/Seller/SellerSetting';
 import SellerProducts from './Pages/Seller/SellerProduct';
 
@@ -31,6 +30,7 @@ import AdminLayout from './Pages/Admin/AdminLayout';
 import AdminDashboard from './Pages/Admin/AdminDashboard';
 import AdminSellers from './Pages/Admin/AdminSellers';
 import AdminDisputes from './Pages/Admin/AdminDisputes';
+import SellerCustomers from './Pages/Seller/SellersCustomers';
 
 
 function App() {
