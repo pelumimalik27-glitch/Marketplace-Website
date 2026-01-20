@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Filter, User, Star, ShoppingBag, Clock, Mail, Phone, MapPin, TrendingUp, DollarSign } from 'lucide-react';
 
-function SellersCustomers() {
+function SellerCustomers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
   

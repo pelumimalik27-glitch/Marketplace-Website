@@ -30,7 +30,7 @@ import AdminLayout from './Pages/Admin/AdminLayout';
 import AdminDashboard from './Pages/Admin/AdminDashboard';
 import AdminSellers from './Pages/Admin/AdminSellers';
 import AdminDisputes from './Pages/Admin/AdminDisputes';
-import SellerCustomers from './Pages/Seller/SellersCustomers';
+import SellersCustomers from './Pages/Seller/SellerCustomers';
 
 
 function App() {
@@ -81,7 +81,7 @@ function App() {
   <Route path="analytics" element={<SellerAnalytics />} />
   <Route path="messages" element={<SellerMessages />} />
   <Route path="payouts" element={<SellerPayouts/>} />
-  <Route path="customers" element={<SellerCustomers />} />
+  <Route path="customers" element={<SellersCustomers />} />
   <Route path="settings" element={<SellerSettings />} />
 </Route>
 
