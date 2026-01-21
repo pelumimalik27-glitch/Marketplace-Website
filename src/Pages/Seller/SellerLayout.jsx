@@ -27,8 +27,7 @@ function SellerLayout() {
     { path: '/seller/analytics', icon: <BarChart3 size={20} />, label: 'Analytics' },
     { path: '/seller/messages', icon: <MessageSquare size={20} />, label: 'Messages' },
     { path: '/seller/payouts', icon: <DollarSign size={20} />, label: 'Payouts' },
-    { path: '/seller/customers', icon: <Users size={20} />, label: 'Customers' },
-    { path: '/seller/settings', icon: <Settings size={20} />, label: 'Settings' },
+    { path: '/seller/customers', icon: <Users size={20} />, label: 'Customers' },    { path: '/seller/settings', icon: <Settings size={20} />, label: 'Settings' },
   ];
 
   const handleSellerLogout = () => {

@@ -17,7 +17,7 @@ function SellerDashboard() {
   const { orders } = useOrder();
   
   const sellerId = 1; // Assuming current seller ID is 1
-  const myProducts = products.filter(p => p.seller.includes('Sony')); // Filter by seller name
+  const myProducts = products.filter(p => p.seller.includes('Sony Store')); // Filter by seller name
   const myOrders = orders.filter(order => 
     order.subOrders?.some(sub => sub.sellerId === sellerId)
   );
@@ -88,7 +88,7 @@ function SellerDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl shadow p-6">
+          <div key={index} className="bg-white rounded-xl shadow p-6 mt-2">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-gray-500 text-sm">{stat.title}</p>
@@ -128,9 +128,9 @@ function SellerDashboard() {
                       <td className="p-4">{order.customer}</td>
                       <td className="p-4">${order.total.toFixed(2)}</td>
                       <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-sm ${
+                        <span className={`px-5 py-2  rounded-lg text-sm ${
                           order.status === 'Delivered' ? 'bg-green-100 text-green-800' :
-                          order.status === 'Processing' ? 'bg-blue-100 text-blue-800' :
+                          order.status === 'Processing' ? `bg-blue-100 text-blue-800` :
                           order.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-red-100 text-red-800'
                         }`}>

@@ -70,7 +70,7 @@ function App() {
 
       {/* Seller Routes */}
 <Route 
-  path="/seller/*" 
+  path="/seller/" 
   element={
     isLogin && user?.role === 'seller' ? <SellerLayout /> : <Navigate to="/authpage" replace />
   }

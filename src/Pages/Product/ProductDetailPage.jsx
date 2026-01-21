@@ -46,14 +46,14 @@ function ProductDetailPage() {
         <div className="space-y-4">
           <div className="bg-white rounded-xl p-4 shadow-lg">
             <img 
-              src={product.image} 
+              src={product.image } 
               alt={product.name}
               className="w-full h-96 object-contain rounded-lg"
             />
           </div>
           
           <div className="flex gap-2 overflow-x-auto">
-            {[product.image, ...(product.image || [])].slice(0, 5).map((img, idx) => (
+            {[product.image, (product.image || [])].slice(0, 5).map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setSelectedImage(idx)}
