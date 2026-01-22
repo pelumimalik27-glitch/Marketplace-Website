@@ -1,4 +1,8 @@
 import { createContext, useContext, useState } from "react";
+import ps from '/images/ps.jpg';
+import iphone from '/images/iphone.jpg';
+import shoes from '/images/shoes.jpg';
+import lamp from '/images/lamp.jpg';
 
 const OrderContext = createContext();
 
@@ -8,8 +12,8 @@ export const OrderProvider = ({ children }) => {
       id: 1001,
       customer: { name: "John Doe", phone: "555-0123", address: "123 Main St" },
       items: [
-        { id: 1, name: "PlayStation 3 Slim Console", image: "/src/assets/PS 3.jpg", price: 399.99, qty: 1, sellerId: 1 },
-        { id: 3, name: "Men's Casual Sneakers",image: "/src/assets/shoes.jpg", price: 159.99, qty: 2, sellerId: 3 },
+        { id: 1, name: "PlayStation 3 Slim Console", image: ps, price: 399.99, qty: 1, sellerId: 1 },
+        { id: 3, name: "Men's Casual Sneakers", image: shoes, price: 159.99, qty: 2, sellerId: 3 },
       ],
       total: 719.97,
       date: "2025-03-15 14:30",
@@ -39,8 +43,8 @@ export const OrderProvider = ({ children }) => {
       id: 1002,
       customer: { name: "Jane Smith", phone: "555-0456", address: "456 Oak Ave" },
       items: [
-        { id: 2, name: "iPhone 13 Pro Max",  image: "/src/assets/iphone.jpg", price: 279.99, qty: 1, sellerId: 2 },
-        { id: 5, name: "Modern Table Lamp",   image: "/src/assets/lamp.jpg", price: 259.99, qty: 1, sellerId: 5 },
+        { id: 2, name: "iPhone 13 Pro Max", image: iphone, price: 279.99, qty: 1, sellerId: 2 },
+        { id: 5, name: "Modern Table Lamp", image: lamp, price: 259.99, qty: 1, sellerId: 5 },
       ],
       total: 539.98,
       date: "2025-03-18 10:15",

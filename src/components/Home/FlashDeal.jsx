@@ -6,21 +6,18 @@ import { useNavigate } from 'react-router-dom';
 
 
 
-function FlashDeal() {
-    const FlashProduct = [
-      
- { id:1, name: "Leather Travel Bag", imgUrl:"./src/assets/bag.jpg", price:189.99 },
 
- { id:2, name: "Modern Lounge Chair", imgUrl:"./src/assets/chair.jpg", price:449.99 },
+function FlashDeal() {  
+const FlashProduct = [
+  { id: 1, name: "Leather Travel Bag", imgUrl: "/images/bag.jpg", price: 189.99 },
+  { id: 2, name: "Modern Lounge Chair", imgUrl: "/images/chair.jpg", price: 449.99 },
+  { id: 3, name: "Wireless Bluetooth Earbuds", imgUrl: "/images/earpod.jpg", price: 279.99 },
+  { id: 4, name: "Fashion Sunglasses", imgUrl: "/images/glass.jpg", price: 129.99 },
+  { id: 5, name: "Smart Fitness Watch", imgUrl: "/images/smartwatch.jpg", price: 399.99 },
+  { id: 6, name: "Premium Handbag", imgUrl: "/images/bag.jpg", price: 200.99 }
+];
 
- { id:3, name: "Wireless Bluetooth Earbuds", imgUrl:"./src/assets/earpod.jpg", price:279.99 },
 
- { id:4, name: "Fashion Sunglasses", imgUrl:"./src/assets/glass.jpg", price:129.99 },
-
- { id:5, name: "Smart Fitness Watch", imgUrl:"./src/assets/SmartWatch.jpg", price:399.99 },
-
- { id:6, name: "Premium Handbag", imgUrl:"./src/assets/bag.jpg", price:200.99 }
-]
   const navigate = useNavigate()
      
   return (

@@ -1,9 +1,6 @@
 import React from 'react'
 import CategoryCard from './CategoryCard';
 
-
-
-
 function ShopCategory() {
   const items = [
     { id:1, name: "Electronics", Qty: "4 items" },

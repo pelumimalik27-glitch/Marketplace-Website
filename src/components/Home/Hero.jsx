@@ -1,10 +1,12 @@
 import React from 'react'
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+
+
 function Hero() {
   const [active,setActive] = useState('')
   return (
-    <section className="relative w-full  sm:h-[380px] md:h-[100%]  bg-[url('/src/assets/bghero.jpg')] bg-contain object-contain bg-center mt-6   py-5  ">
+    <section className="relative w-full  sm:h-[380px] md:h-[100%]  bg-[url('/images/bghero.jpg')] bg-contain object-contain bg-center mt-3   py-5 " >
 
       <div className="absolute inset-0 bg-black/60"></div>
 

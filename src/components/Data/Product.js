@@ -10,8 +10,9 @@ const products = [
     inStock: true,
     seller: "Sony Store",
     sellerId: 1,
-    image: "/src/assets/PS 3.jpg",
-    description: "The PlayStation 3 Slim Console delivers high-definition gaming with advanced graphics and multimedia capabilities.",
+    image: "/images/ps.jpg",
+    description:
+      "The PlayStation 3 Slim Console delivers high-definition gaming with advanced graphics and multimedia capabilities.",
     specs: {
       brand: "Sony",
       model: "PS3 Slim",
@@ -30,8 +31,9 @@ const products = [
     inStock: true,
     seller: "Apple Store",
     sellerId: 2,
-    image: "/src/assets/iphone.jpg",
-    description: "Latest iPhone with Pro camera system, A15 Bionic chip, and Super Retina XDR display.",
+    image: "/images/iphone.jpg",
+    description:
+      "Latest iPhone with Pro camera system, A15 Bionic chip, and Super Retina XDR display.",
     specs: {
       brand: "Apple",
       storage: "256GB",
@@ -50,13 +52,14 @@ const products = [
     inStock: true,
     seller: "Urban Wears",
     sellerId: 3,
-    image: "/src/assets/shoes.jpg",
-    description: "Comfortable casual sneakers with premium leather and cushioned insoles.",
+    image: "/images/shoes.jpg",
+    description:
+      "Comfortable casual sneakers with premium leather and cushioned insoles.",
     specs: {
       brand: "UrbanWear",
       material: "Leather",
-      size: "Available 7-13",
-      color: "White/Black"
+      size: "7–13",
+      color: "White / Black"
     }
   },
   {
@@ -70,12 +73,13 @@ const products = [
     inStock: true,
     seller: "Street Style",
     sellerId: 4,
-    image: "/src/assets/cloth.jpg",
-    description: "Premium cotton hoodie with kangaroo pocket and adjustable drawstring hood.",
+    image: "/images/cloth.jpg",
+    description:
+      "Premium cotton hoodie with kangaroo pocket and adjustable drawstring hood.",
     specs: {
       brand: "StreetStyle",
       material: "100% Cotton",
-      sizes: "S-XXL",
+      sizes: "S–XXL",
       colors: "Black, Gray, Navy"
     }
   },
@@ -90,8 +94,9 @@ const products = [
     inStock: true,
     seller: "HomeGlow",
     sellerId: 5,
-    image: "/src/assets/lamp.jpg",
-    description: "Contemporary table lamp with dimmable LED and touch control.",
+    image: "/images/lamp.jpg",
+    description:
+      "Contemporary table lamp with dimmable LED and touch control.",
     specs: {
       brand: "HomeGlow",
       power: "10W LED",
@@ -110,8 +115,9 @@ const products = [
     inStock: true,
     seller: "ActiveFit",
     sellerId: 6,
-    image: "/src/assets/shoes.jpg",
-    description: "Lightweight running shoes with responsive cushioning and breathable mesh.",
+    image: "/images/shoes.jpg",
+    description:
+      "Lightweight running shoes with responsive cushioning and breathable mesh.",
     specs: {
       brand: "ActiveFit",
       type: "Running",
@@ -130,11 +136,11 @@ const products = [
     inStock: true,
     seller: "CoolAir",
     sellerId: 7,
-    image: "/src/assets/fans.jpg",
-    description: "Portable rechargeable fan with 3 speed settings and 8-hour battery life.",
+    image: "/images/fans.jpg",
+    description:
+      "Portable rechargeable fan with 3 speed settings and 8-hour battery life.",
     specs: {
       brand: "CoolAir",
-      power: "Rechargeable",
       runtime: "8 hours",
       speeds: "3"
     }
@@ -150,12 +156,12 @@ const products = [
     inStock: true,
     seller: "AutoCare",
     sellerId: 8,
-    image: "/src/assets/caracces.jpg",
-    description: "Complete car interior accessory kit including mats, organizers, and cleaners.",
+    image: "/images/caracces.jpg",
+    description:
+      "Complete car interior accessory kit including mats, organizers, and cleaners.",
     specs: {
       brand: "AutoCare",
       items: "12 pieces",
-      material: "Premium",
       fit: "Universal"
     }
   },
@@ -170,78 +176,72 @@ const products = [
     inStock: false,
     seller: "Sony Store",
     sellerId: 1,
-    image: "/src/assets/headset.jpg",
-    description: "Wireless gaming headset with 7.1 surround sound and noise cancellation.",
+    image: "/images/headset.jpg",
+    description:
+      "Wireless gaming headset with 7.1 surround sound and noise cancellation.",
     specs: {
-      brand: "GamingPro",
       battery: "20 hours",
-      connectivity: "Bluetooth 5.0",
-      mic: "Detachable"
+      connectivity: "Bluetooth 5.0"
     }
   },
   {
     id: 10,
-    name: "Mouse",
+    name: "Wireless Mouse",
     price: 49.99,
-    category: "Sports",
+    category: "Electronics",
     rating: 4.5,
     reviews: 156,
     freeShipping: true,
     inStock: true,
     seller: "ActiveFit",
     sellerId: 6,
-    image: "/src/assets/mouse.jpg",
-    description: "Non-slip yoga mat with carrying strap and alignment lines.",
+    image: "/images/mouse.jpg",
+    description:
+      "Ergonomic wireless mouse with smooth tracking and long battery life.",
     specs: {
-      brand: "YogaLife",
-      thickness: "6mm",
-      material: "Eco-friendly TPE",
-      size: "72 x 24 inches"
+      dpi: "1600",
+      connectivity: "Wireless USB"
     }
   },
- {
-  id: 11,
-  name: "Electric Coffee Grinder",
-  price: 129.99,
-  category: "Home Appliances",
-  rating: 4.7,
-  reviews: 89,
-  freeShipping: true,
-  inStock: false,
-  seller: "Sony Store",
-  sellerId: 1,
-  image: "/src/assets/grinder.jpg",
-  description: "High-performance electric coffee grinder with stainless steel blades for fast and even grinding.",
-  specs: {
-    brand: "KitchenPro",
-    power: "200W",
-    capacity: "80g",
-    material: "Stainless Steel",
-    usage: "Coffee beans, spices"
+  {
+    id: 11,
+    name: "Electric Coffee Grinder",
+    price: 129.99,
+    category: "Home Appliances",
+    rating: 4.7,
+    reviews: 89,
+    freeShipping: true,
+    inStock: false,
+    seller: "Sony Store",
+    sellerId: 1,
+    image: "/images/grinder.jpg",
+    description:
+      "High-performance electric coffee grinder with stainless steel blades.",
+    specs: {
+      power: "200W",
+      capacity: "80g"
+    }
+  },
+  {
+    id: 12,
+    name: "Double Door Refrigerator",
+    price: 499.99,
+    category: "Home Appliances",
+    rating: 4.5,
+    reviews: 156,
+    freeShipping: true,
+    inStock: true,
+    seller: "ActiveFit",
+    sellerId: 6,
+    image: "/images/fridge.jpg",
+    description:
+      "Energy-efficient double door refrigerator with fast cooling technology.",
+    specs: {
+      capacity: "250 Liters",
+      energyRating: "A+",
+      color: "Silver"
+    }
   }
-},
-{
-  id: 12,
-  name: "Double Door Refrigerator",
-  price: 499.99,
-  category: "Home Appliances",
-  rating: 4.5,
-  reviews: 156,
-  freeShipping: true,
-  inStock: true,
-  seller: "ActiveFit",
-  sellerId: 6,
-  image: "/src/assets/fridge.jpg",
-  description: "Energy-efficient double door refrigerator with large storage capacity and fast cooling technology.",
-  specs: {
-    brand: "CoolMax",
-    capacity: "250 Liters",
-    energyRating: "A+",
-    coolingType: "Frost Free",
-    color: "Silver"
-  }
-}
-
 ];
 
 export default products;
