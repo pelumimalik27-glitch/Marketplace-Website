@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../../contexts/AppContext';
-import { Search, Filter, CheckCircle, XCircle, MoreVertical, Mail, Phone, Shield } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, MoreVertical,Users ,Clock, Mail, Phone, Shield } from 'lucide-react';
 
 function AdminSellers() {
   const { sellers, setSellers } = useContext(AppContext);
