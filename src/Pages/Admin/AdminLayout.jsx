@@ -1,5 +1,5 @@
-import React from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import React, { useContext } from 'react'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { 
   LayoutDashboard, 
   Users, 
@@ -8,11 +8,22 @@ import {
   Settings,
   FileText,
   DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  LogOut,Warehouse
 } from 'lucide-react';
+
+import { AppContext } from '../../contexts/AppContext';
 
 function AdminLayout() {
   const location = useLocation();
+  const { handleLogout } = useContext(AppContext);
+  const navigate = useNavigate()
+
+
+  const adminLogout = ()=>{
+    handleLogout();
+    navigate('/')
+  }
   
   const navItems = [
     { path: '/admin', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
@@ -30,8 +41,11 @@ function AdminLayout() {
         {/* Sidebar */}
         <div className='w-64 bg-gray-900 text-white min-h-screen'>
           <div className="p-6 border-b border-gray-800">
-            <h1 className="text-2xl font-bold">Admin Panel</h1>
-            <p className="text-gray-400 text-sm mt-1">Platform Management</p>
+            <div className='flex  gap-2 items-center ml-2'>
+               <Warehouse className='text-gray-400  font-extrabold' />
+             <h1 className='text-gray-400 font-extrabold text-lg '>Elite <br /><span className='text-gray-400 font-extrabold text-2xl'>Admin Panel</span></h1>
+           </div>
+            <p className="text-gray-400 text-md mt-1 ml-7">Platform Management</p>
           </div>
           
           <nav className="p-4 space-y-2">
@@ -60,6 +74,13 @@ function AdminLayout() {
               </div>
             </div>
           </div>
+            <button
+              onClick={adminLogout}
+              className="flex bg-gray-800 p-4 rounded-lg items-center gap-3 w-full px-4 py-3 text-white hover:bg-gray-400 hover:text-blue-800 transition"
+            >
+              <LogOut/>
+              <span>Logout</span>
+            </button>
         </div>
         
         {/* Main Content */}

@@ -24,13 +24,16 @@ import SellerPayouts from './Pages/Seller/SellerPayouts';
 import SellerMessages from './Pages/Seller/SellerMessage';
 import SellerSettings from './Pages/Seller/SellerSetting';
 import SellerProducts from './Pages/Seller/SellerProduct';
+import SellersCustomers from './Pages/Seller/SellerCustomers';
 
 // Admin Pages
 import AdminLayout from './Pages/Admin/AdminLayout';
 import AdminDashboard from './Pages/Admin/AdminDashboard';
 import AdminSellers from './Pages/Admin/AdminSellers';
 import AdminDisputes from './Pages/Admin/AdminDisputes';
-import SellersCustomers from './Pages/Seller/SellerCustomers';
+import AdminAnalytic from './Pages/Admin/AdminAnalytic';
+
+
 
 
 function App() {
@@ -70,7 +73,7 @@ function App() {
 
       {/* Seller Routes */}
 <Route 
-  path="/seller/" 
+  path="/seller/*" 
   element={
     isLogin && user?.role === 'seller' ? <SellerLayout /> : <Navigate to="/authpage" replace />
   }
@@ -95,6 +98,8 @@ function App() {
         <Route index element={<AdminDashboard />} />
         <Route path="sellers" element={<AdminSellers />} />
         <Route path="disputes" element={<AdminDisputes />} />
+        <Route path='products' element={<SellerProducts/>}/>
+        <Route path='analytics' element={<AdminAnalytic/>}/>
       </Route>
 
       {/* Catch-all Route */}
