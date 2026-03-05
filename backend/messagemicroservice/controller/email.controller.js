@@ -165,6 +165,35 @@ async function sendSellerApprovalEmail(user) {
   return sendEmail(user.email, subject, html, text);
 }
 
+async function sendMessageNotificationEmail(payload = {}) {
+  const recipientName = String(payload.recipientName || "").trim();
+  const senderName = String(payload.senderName || "Marketplace User").trim();
+  const preview = String(payload.preview || "").trim();
+  const actionUrl = String(payload.actionUrl || "").trim();
+
+  const subject = `New message from ${senderName}`;
+  const html = `
+    <div style="font-family: Arial; max-width:600px;">
+      <h2>Hello ${recipientName || ""},</h2>
+      <p>You received a new message on <b>Elite Marketplace</b>.</p>
+      <p><b>From:</b> ${senderName}</p>
+      ${preview ? `<p><b>Message preview:</b> ${preview}</p>` : ""}
+      ${
+        actionUrl
+          ? `<p><a href="${actionUrl}" style="color:#ea580c; text-decoration:none;">Open Marketplace Messages</a></p>`
+          : ""
+      }
+      <br/>
+      <p>Log in to reply securely on the platform.</p>
+    </div>
+  `;
+  const text = actionUrl
+    ? `New message from ${senderName}. Open: ${actionUrl}`
+    : `New message from ${senderName}. Log in to Elite Marketplace to reply.`;
+
+  return sendEmail(payload.recipientEmail, subject, html, text);
+}
+
 const toMailUser = (input = {}) => ({
   email: normalizeEmail(input.email),
   name: String(input.name || "").trim(),
@@ -234,6 +263,56 @@ async function sendSellerApproval(req, res) {
     return res.status(500).json({
       success: false,
       error: error?.message || "Failed to send seller approval email",
+    });
+  }
+}
+
+const isInternalAuthorized = (req) => {
+  const configuredKey = String(process.env.INTERNAL_NOTIFY_KEY || "").trim();
+  if (!configuredKey) return true;
+  const incomingKey = String(req.headers["x-internal-key"] || "").trim();
+  return Boolean(incomingKey && incomingKey === configuredKey);
+};
+
+async function sendMessageNotification(req, res) {
+  try {
+    if (!isInternalAuthorized(req)) {
+      return res.status(403).json({
+        success: false,
+        error: "Forbidden: internal notification key mismatch",
+      });
+    }
+
+    const recipientEmail = normalizeEmail(req.body?.recipientEmail);
+    const senderName = String(req.body?.senderName || "").trim();
+    const preview = String(req.body?.preview || "").trim();
+    const recipientName = String(req.body?.recipientName || "").trim();
+    const actionUrl = String(req.body?.actionUrl || "").trim();
+
+    if (!recipientEmail) {
+      return res.status(400).json({ success: false, error: "recipientEmail is required" });
+    }
+    if (!senderName) {
+      return res.status(400).json({ success: false, error: "senderName is required" });
+    }
+
+    await sendMessageNotificationEmail({
+      recipientEmail,
+      recipientName,
+      senderName,
+      preview,
+      actionUrl,
+      conversationId: String(req.body?.conversationId || "").trim(),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Message notification email sent to ${recipientEmail}`,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Failed to send message notification email",
     });
   }
 }
@@ -349,6 +428,7 @@ module.exports = {
   sendWelcome,
   sendLoginAlert,
   sendSellerApproval,
+  sendMessageNotification,
   sendWelcomeEmail,
   sendLoginAlertEmail,
   sendSellerApprovalEmail,

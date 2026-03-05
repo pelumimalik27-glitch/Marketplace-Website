@@ -82,8 +82,15 @@ const emitToUsers = (userIds = [], event = "", payload = {}) => {
   });
 };
 
+const isUserOnline = (userId = "") => {
+  if (!ioInstance) return false;
+  const room = ioInstance.sockets.adapter.rooms.get(toRoom(userId));
+  return Boolean(room && room.size > 0);
+};
+
 module.exports = {
   initSocket,
   getIO,
   emitToUsers,
+  isUserOnline,
 };

@@ -22,7 +22,7 @@ const { conversationRouter } = require("./src/modules/conversations/conversation
 const { syncAdminFromEnv } = require("./src/modules/admins/admin.bootstrap");
 const { paymentRouter } = require("./src/modules/payment/payment.router");
 
-const EXPRESSPORT = Number(process.env.PORT) || 6000;
+const EXPRESSPORT = Number(process.env.PORT) || 6001;
 const defaultOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",

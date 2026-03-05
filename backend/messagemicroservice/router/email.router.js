@@ -5,6 +5,7 @@ const {
   sendWelcome,
   sendLoginAlert,
   sendSellerApproval,
+  sendMessageNotification,
 } = require('../controller/email.controller');
 
 
@@ -14,5 +15,6 @@ emailRouter.route('/verify-otp').post(verifyOTP);
 emailRouter.route('/welcome').post(sendWelcome);
 emailRouter.route('/login-alert').post(sendLoginAlert);
 emailRouter.route('/seller-approval').post(sendSellerApproval);
+emailRouter.route('/message-notification').post(sendMessageNotification);
 
 module.exports = {emailRouter};

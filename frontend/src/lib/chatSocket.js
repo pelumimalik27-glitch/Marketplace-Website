@@ -8,7 +8,7 @@ const resolveSocketBaseUrl = () => {
   const apiBase = String(import.meta.env.VITE_API_BASE_URL || "").trim();
   if (apiBase) return apiBase.replace(/\/+$/, "");
 
-  if (import.meta.env.DEV) return "http://localhost:6000";
+  if (import.meta.env.DEV) return "http://localhost:6001";
   return window.location.origin;
 };
 

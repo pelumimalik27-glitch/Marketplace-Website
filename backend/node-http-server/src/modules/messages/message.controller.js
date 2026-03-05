@@ -1,7 +1,13 @@
 const mongoose = require("mongoose");
 const messageSchema = require("./message.schema.js");
 const conversationSchema = require("../conversations/conversation.schema");
-const { emitToUsers } = require("../../lib/socket");
+const userSchema = require("../users/user.schema");
+const sellerSchema = require("../sellers/seller.schema");
+const messageNotificationSchema = require("./message.notification.schema");
+const { emitToUsers, isUserOnline } = require("../../lib/socket");
+const { notifyNewMessage } = require("../../lib/mail.notifier");
+
+const NOTIFICATION_COOLDOWN_MS = Number(process.env.MESSAGE_NOTIFICATION_COOLDOWN_MS) || 10 * 60 * 1000;
 
 const asObjectId = (value) => {
   const text = String(value || "").trim();
@@ -27,6 +33,95 @@ const serializeMessage = (doc = {}) => {
     conversationId: String(raw?.conversationId || ""),
     senderId: String(raw?.senderId || ""),
   };
+};
+
+const getFrontendBaseUrl = () =>
+  String(process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "");
+
+const shouldSendOfflineEmail = async (recipientId, conversationId) => {
+  const now = Date.now();
+  const cooldownCutoff = new Date(now - NOTIFICATION_COOLDOWN_MS);
+
+  const existing = await messageNotificationSchema.findOne({
+    recipient: recipientId,
+    conversationId,
+  });
+
+  if (existing && existing.lastSentAt && existing.lastSentAt > cooldownCutoff) {
+    return false;
+  }
+
+  if (existing) {
+    existing.lastSentAt = new Date(now);
+    await existing.save();
+    return true;
+  }
+
+  try {
+    await messageNotificationSchema.create({
+      recipient: recipientId,
+      conversationId,
+      lastSentAt: new Date(now),
+    });
+    return true;
+  } catch (error) {
+    // Handle race on unique index.
+    if (error?.code !== 11000) throw error;
+    const latest = await messageNotificationSchema.findOne({
+      recipient: recipientId,
+      conversationId,
+    });
+    if (!latest || !latest.lastSentAt || latest.lastSentAt <= cooldownCutoff) {
+      await messageNotificationSchema.findOneAndUpdate(
+        { recipient: recipientId, conversationId },
+        { $set: { lastSentAt: new Date(now) } }
+      );
+      return true;
+    }
+    return false;
+  }
+};
+
+const triggerOfflineMessageEmails = async ({ conversation, senderId, content }) => {
+  const participantIds = Array.isArray(conversation?.participants)
+    ? conversation.participants.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+  const recipientIds = participantIds.filter((id) => id !== String(senderId || ""));
+  if (recipientIds.length === 0) return;
+
+  const senderUser = await userSchema.findById(senderId).select("name email").lean();
+  const sellerProfile = await sellerSchema
+    .findOne({ user: senderId })
+    .select("storeName")
+    .lean();
+  const senderName =
+    String(sellerProfile?.storeName || "").trim() ||
+    String(senderUser?.name || "").trim() ||
+    String(senderUser?.email || "").trim() ||
+    "Marketplace User";
+
+  for (const recipientId of recipientIds) {
+    if (isUserOnline(recipientId)) continue;
+
+    const shouldNotify = await shouldSendOfflineEmail(recipientId, conversation._id);
+    if (!shouldNotify) continue;
+
+    const recipientUser = await userSchema
+      .findById(recipientId)
+      .select("name email")
+      .lean();
+    if (!recipientUser?.email) continue;
+
+    const actionUrl = `${getFrontendBaseUrl()}/messages?conversation=${conversation._id}`;
+    await notifyNewMessage({
+      recipientEmail: recipientUser.email,
+      recipientName: recipientUser.name || "",
+      senderName,
+      preview: content,
+      conversationId: String(conversation._id),
+      actionUrl,
+    });
+  }
 };
 
 const create = async (req, res) => {
@@ -89,6 +184,14 @@ const create = async (req, res) => {
         },
       }
     );
+
+    triggerOfflineMessageEmails({
+      conversation,
+      senderId: userId,
+      content,
+    }).catch((error) => {
+      console.error(`Message offline notification failed: ${error?.message || error}`);
+    });
 
     return res.status(201).json({ success: true, data: payload });
   } catch (error) {
