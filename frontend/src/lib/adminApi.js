@@ -1,7 +1,8 @@
 import { buildApiUrl } from "./api";
+import { getValidAccessToken } from "./authSession";
 
-const getHeaders = () => {
-  const token = localStorage.getItem("userToken");
+const getHeaders = async () => {
+  const token = await getValidAccessToken().catch(() => "");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -9,10 +10,11 @@ const getHeaders = () => {
 };
 
 const request = async (path, options = {}) => {
+  const headers = await getHeaders();
   const response = await fetch(buildApiUrl(path), {
     ...options,
     headers: {
-      ...getHeaders(),
+      ...headers,
       ...(options.headers || {}),
     },
   });

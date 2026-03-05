@@ -1,26 +1,67 @@
 import { buildApiUrl } from "./api";
+import { getValidAccessToken, refreshSession } from "./authSession";
 
-const getAuthHeaders = (isFormData = false) => {
-  const token = localStorage.getItem("userToken");
+const stripHtml = (value = "") => String(value).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+const getAuthHeaders = async (isFormData = false) => {
+  const token = await getValidAccessToken().catch(
+    () => (localStorage.getItem("userToken") || "")
+  );
   return {
     ...(isFormData ? {} : { "Content-Type": "application/json" }),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token
+      ? { Authorization: `Bearer ${token}`, "x-access-token": token }
+      : {}),
   };
 };
 
 const request = async (path, options = {}) => {
   const isFormData = typeof FormData !== "undefined" && options?.body instanceof FormData;
-  const response = await fetch(buildApiUrl(path), {
+  const authHeaders = await getAuthHeaders(isFormData);
+  let response = await fetch(buildApiUrl(path), {
     ...options,
     headers: {
-      ...getAuthHeaders(isFormData),
+      ...authHeaders,
       ...(options.headers || {}),
     },
   });
 
-  const payload = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    try {
+      const refreshed = await refreshSession();
+      const retryToken = refreshed?.accessToken || "";
+      response = await fetch(buildApiUrl(path), {
+        ...options,
+        headers: {
+          ...(isFormData ? {} : { "Content-Type": "application/json" }),
+          ...(retryToken
+            ? { Authorization: `Bearer ${retryToken}`, "x-access-token": retryToken }
+            : {}),
+          ...(options.headers || {}),
+        },
+      });
+    } catch (_) {
+      // Leave the original 401 response handling below.
+    }
+  }
+
+  const raw = await response.text();
+  let payload = {};
+  if (raw) {
+    try {
+      payload = JSON.parse(raw);
+    } catch (_) {
+      payload = {};
+    }
+  }
+
   if (!response.ok) {
-    throw new Error(payload?.message || "Request failed");
+    const message =
+      payload?.message ||
+      payload?.error ||
+      stripHtml(raw) ||
+      `Request failed (HTTP ${response.status})`;
+    throw new Error(message);
   }
   return payload;
 };
@@ -116,21 +157,27 @@ export const fetchConversationsByUser = async (userId = "") => {
 };
 
 export const fetchConversationMessages = async (conversationId = "") => {
-  const payload = await request("/messages");
+  const suffix = conversationId
+    ? `?conversationId=${encodeURIComponent(String(conversationId))}`
+    : "";
+  const payload = await request(`/messages${suffix}`);
   const messages = Array.isArray(payload?.data) ? payload.data : [];
-  const filtered = !conversationId
-    ? messages
-    : messages.filter((message) => asId(message.conversationId) === String(conversationId));
-  return filtered.sort(
+  return messages.sort(
     (a, b) =>
       new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime()
   );
 };
 
 export const sendConversationMessage = async (conversationId, senderId, content) => {
+  const safeContent = String(content || "").trim();
+  const safeSenderId = String(senderId || "").trim();
   return request("/messages", {
     method: "POST",
-    body: JSON.stringify({ conversationId, senderId, content }),
+    body: JSON.stringify({
+      conversationId,
+      content: safeContent,
+      ...(safeSenderId ? { senderId: safeSenderId } : {}),
+    }),
   });
 };
 

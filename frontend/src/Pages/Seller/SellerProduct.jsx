@@ -8,6 +8,7 @@ import {
   fetchSellerProducts,
   updateSellerProduct,
 } from "../../lib/sellerApi";
+import { formatNaira } from "../../lib/currency";
 
 const defaultForm = {
   name: "",
@@ -20,7 +21,8 @@ const defaultForm = {
 };
 
 const numberValue = (value) => Number(value || 0);
-const money = (value) => `$${numberValue(value).toFixed(2)}`;
+const money = (value) => formatNaira(numberValue(value));
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const asImage = (product) =>
   String(product?.image || (Array.isArray(product?.images) ? product.images[0] : "") || "");
 const DEFAULT_CATEGORY_OPTIONS = [
@@ -153,6 +155,10 @@ function SellerProducts() {
       setFormError("Please select a valid image file.");
       return;
     }
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      setFormError("Image is too large. Please upload an image smaller than 5MB.");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -165,7 +171,10 @@ function SellerProducts() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!sellerProfile?._id) return;
+    if (!sellerProfile?._id) {
+      setFormError("Seller profile not found. Refresh the page or complete seller setup.");
+      return;
+    }
 
     try {
       setSaving(true);

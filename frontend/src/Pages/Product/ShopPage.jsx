@@ -3,17 +3,20 @@ import FilterPanel from "../../components/Products/FilterPanel";
 import SortBar from "../../components/Products/SortBar";
 import ProductCard from "../../components/Home/ProductCard";
 import { AppContext } from "../../contexts/AppContext";
-import { fetchProducts } from "../../lib/productApi";
+import { fetchProducts, getCachedProductsSnapshot } from "../../lib/productApi";
 
+const MAX_PRICE = 1000000;
 
 
 function ShopPage() {
-  const [products, setProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialProducts = useMemo(() => getCachedProductsSnapshot({ sort: "-createdAt" }), []);
+  const hasInitialProducts = initialProducts.length > 0;
+  const [products, setProducts] = useState(initialProducts);
+  const [isLoading, setIsLoading] = useState(!hasInitialProducts);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState({
     category: "All",
-    price: 1000,
+    price: MAX_PRICE,
     freeShipping: false,
     inStock: false,
     rating: 0,
@@ -27,7 +30,9 @@ function ShopPage() {
 
     const loadProducts = async () => {
       try {
-        setIsLoading(true);
+        if (!hasInitialProducts) {
+          setIsLoading(true);
+        }
         setError("");
         const rows = await fetchProducts({ sort: "-createdAt" });
         if (!mounted) return;
@@ -45,7 +50,7 @@ function ShopPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [hasInitialProducts]);
 
   const filteredProduct = useMemo(
     () =>

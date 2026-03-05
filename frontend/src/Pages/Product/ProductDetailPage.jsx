@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Star, Truck, Shield, ChevronLeft, Heart } from "lucide-react";
 import { AppContext } from "../../contexts/AppContext";
 import { fetchProductById, fetchProducts } from "../../lib/productApi";
+import { formatNaira } from "../../lib/currency";
 
 function ProductDetailPage() {
   const { id } = useParams();
@@ -102,6 +103,9 @@ function ProductDetailPage() {
   const cartQuantity = cartItem ? cartItem.qty : 0;
   const productImages = product.images?.length ? product.images : [product.image];
   const displayedImage = productImages[selectedImage] || product.image;
+  const sellerDisplayName = String(product.sellerName || product.seller || "").trim();
+  const sellerRating = Number(product.rating || 0);
+  const sellerReviews = Number(product.reviews || 0);
 
   const similarProducts = allProducts
     .filter((p) => p.category === product.category && p.id !== product.id)
@@ -129,7 +133,11 @@ function ProductDetailPage() {
                   selectedImage === idx ? "border-orange-500" : "border-gray-300"
                 }`}
               >
-                <img src={img} alt={`Product view ${idx + 1}`} className="h-full w-full object-cover" />
+                <img
+                  src={img}
+                  alt={`${product.name || "Product"} image ${idx + 1}`}
+                  className="h-full w-full object-cover"
+                />
               </button>
             ))}
           </div>
@@ -155,14 +163,14 @@ function ProductDetailPage() {
             </div>
 
             <div className="mt-4">
-              <span className="text-3xl font-bold text-orange-600 sm:text-4xl">${product.price}</span>
-              {product.originalPrice && <span className="ml-2 text-xl text-gray-500 line-through">${product.originalPrice}</span>}
+              <span className="text-3xl font-bold text-orange-600 sm:text-4xl">{formatNaira(product.price)}</span>
+              {product.originalPrice && <span className="ml-2 text-xl text-gray-500 line-through">{formatNaira(product.originalPrice)}</span>}
             </div>
 
             <div className="mt-6 flex flex-col gap-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex items-center gap-2">
                 <Truck size={18} />
-                <span>{product.freeShipping ? "Free Shipping" : "Shipping: $9.99"}</span>
+                <span>{product.freeShipping ? "Free Shipping" : `Shipping: ${formatNaira(9.99)}`}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Shield size={18} />
@@ -180,14 +188,28 @@ function ProductDetailPage() {
           <div className="rounded-lg bg-gray-50 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-lg font-semibold">Sold by: {product.seller}</h3>
+                <h3 className="text-lg font-semibold">
+                  Sold by: {sellerDisplayName || "Seller details unavailable"}
+                </h3>
                 <div className="mt-1 flex items-center gap-2">
                   <div className="flex">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={14} className={i < 4 ? "fill-yellow-500 text-yellow-500" : "text-gray-300"} />
+                      <Star
+                        key={i}
+                        size={14}
+                        className={
+                          i < Math.floor(sellerRating)
+                            ? "fill-yellow-500 text-yellow-500"
+                            : "text-gray-300"
+                        }
+                      />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-600">4.5 (1.2k reviews)</span>
+                  <span className="text-sm text-gray-600">
+                    {sellerReviews > 0
+                      ? `${sellerRating.toFixed(1)} (${sellerReviews} reviews)`
+                      : "No reviews yet"}
+                  </span>
                 </div>
               </div>
               <button className="font-medium text-orange-600 hover:text-orange-700">Visit Store</button>
@@ -252,7 +274,7 @@ function ProductDetailPage() {
               <div key={p.id} className="rounded-xl bg-white p-4 shadow transition hover:shadow-xl">
                 <img src={p.image} alt={p.name} className="h-44 w-full rounded-lg object-cover" />
                 <h3 className="mt-3 font-semibold">{p.name}</h3>
-                <p className="font-bold text-orange-600">${p.price}</p>
+                <p className="font-bold text-orange-600">{formatNaira(p.price)}</p>
               </div>
             ))}
           </div>

@@ -8,8 +8,8 @@ import {
   fetchMySellerProfile,
   fetchSellerOrders,
   sendConversationMessage,
-  updateConversation,
 } from "../../lib/sellerApi";
+import { getChatSocket } from "../../lib/chatSocket";
 
 const asId = (value) => {
   if (!value) return "";
@@ -46,6 +46,8 @@ function SellerMessages() {
   const [messages, setMessages] = useState([]);
   const [search, setSearch] = useState("");
   const [newMessage, setNewMessage] = useState("");
+  const [toasts, setToasts] = useState([]);
+  const activeConversationRef = useRef("");
 
   const loadConversations = async () => {
     const rows = await fetchConversationsByUser(user?.userId);
@@ -144,6 +146,83 @@ function SellerMessages() {
   };
 
   useEffect(() => {
+    activeConversationRef.current = String(activeConversationId || "");
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    if (!user?.userId) return undefined;
+    const socket = getChatSocket();
+
+    const onConversation = ({ conversation } = {}) => {
+      if (!conversation?._id) return;
+      setConversations((prev) => {
+        const id = String(conversation._id);
+        const exists = prev.findIndex((item) => String(item?._id) === id);
+        if (exists >= 0) {
+          const next = [...prev];
+          next[exists] = { ...next[exists], ...conversation };
+          return next;
+        }
+        return [conversation, ...prev];
+      });
+    };
+
+    const onMessage = ({ message, conversationId } = {}) => {
+      const currentUserId = String(user.userId || "");
+      const senderId = String(message?.senderId || "");
+      const safeConversationId = String(conversationId || message?.conversationId || "");
+      if (!safeConversationId || !message?._id) return;
+
+      if (safeConversationId === activeConversationRef.current) {
+        setMessages((prev) => {
+          if (prev.some((item) => String(item?._id) === String(message._id))) return prev;
+          return [...prev, message];
+        });
+      }
+
+      setConversations((prev) => {
+        const exists = prev.findIndex(
+          (item) => String(item?._id || "") === safeConversationId
+        );
+        if (exists < 0) return prev;
+        const next = [...prev];
+        next[exists] = {
+          ...next[exists],
+          lastMessage: message.content || next[exists].lastMessage,
+          updatedAt: message.createdAt || new Date().toISOString(),
+        };
+        return next;
+      });
+
+      if (senderId !== currentUserId) {
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const content = String(message?.content || "").trim();
+        setToasts((prev) => [...prev, { id, text: content || "New message received" }]);
+        setTimeout(() => {
+          setToasts((prev) => prev.filter((item) => item.id !== id));
+        }, 5000);
+      }
+    };
+
+    socket.on("chat:conversation", onConversation);
+    socket.on("chat:message", onMessage);
+
+    return () => {
+      socket.off("chat:conversation", onConversation);
+      socket.off("chat:message", onMessage);
+    };
+  }, [user?.userId]);
+
+  useEffect(() => {
+    if (!activeConversationId) return undefined;
+    const socket = getChatSocket();
+    socket.emit("chat:join", activeConversationId);
+    return () => {
+      socket.emit("chat:leave", activeConversationId);
+    };
+  }, [activeConversationId]);
+
+  useEffect(() => {
     loadInbox();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.userId]);
@@ -196,9 +275,7 @@ function SellerMessages() {
     try {
       setSending(true);
       await sendConversationMessage(activeConversationId, user.userId, text);
-      await updateConversation(activeConversationId, { lastMessage: text });
       setNewMessage("");
-      await Promise.all([loadMessages(activeConversationId), loadConversations()]);
     } catch (err) {
       setError(err.message || "Failed to send message");
     } finally {
@@ -207,7 +284,17 @@ function SellerMessages() {
   };
 
   return (
-    <div className="grid min-h-0 grid-cols-1 gap-4 lg:h-[calc(100vh-11rem)] lg:grid-cols-[340px_1fr]">
+    <div className="relative grid min-h-0 grid-cols-1 gap-4 lg:h-[calc(100vh-11rem)] lg:grid-cols-[340px_1fr]">
+      <div className="pointer-events-none fixed right-4 top-20 z-[70] flex w-full max-w-sm flex-col gap-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="pointer-events-auto rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-lg"
+          >
+            New message: {toast.text}
+          </div>
+        ))}
+      </div>
       <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
         <div className="border-b p-4">
           <h1 className="text-lg font-semibold text-slate-900">Seller Messages</h1>

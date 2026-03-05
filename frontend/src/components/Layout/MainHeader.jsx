@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Search, User, Heart, ShoppingCart } from "lucide-react";
+import { Search, User, Heart, ShoppingCart, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "./Logo";
 import { AppContext } from "../../contexts/AppContext";
@@ -19,6 +19,11 @@ function MainHeader() {
         <div className="flex items-center justify-between lg:justify-start lg:gap-3">
           <Logo />
           <div className="flex items-center gap-4 lg:hidden">
+            {isLogin && (
+              <Link to="/messages">
+                <MessageSquare className="cursor-pointer hover:text-orange-600" size={20} />
+              </Link>
+            )}
             <Link to="/wishlist">
               <Heart className="cursor-pointer hover:text-orange-600" size={20} />
             </Link>
@@ -68,6 +73,12 @@ function MainHeader() {
                 <p className="text-sm text-gray-500">Hello,</p>
                 <span className="font-medium text-black">Sign In</span>
               </div>
+            </Link>
+          )}
+
+          {isLogin && (
+            <Link to="/messages">
+              <MessageSquare className="cursor-pointer hover:text-orange-600" />
             </Link>
           )}
 

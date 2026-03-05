@@ -1,5 +1,6 @@
 import React, { useState, useContext } from 'react'
 import { AppContext } from '../contexts/AppContext';
+import { useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Store, User, Shield } from 'lucide-react';
 import { ArrowLeftCircle } from 'lucide-react';
@@ -14,6 +15,8 @@ function AuthPage() {
   const modeFromState = location.state?.mode;
   const preferredMode = modeFromUrl || modeFromState;
   const redirectTo = location.state?.redirectTo || "/";
+  const prefilledEmail = location.state?.email || "";
+  const otpVerified = Boolean(location.state?.otpVerified);
   const [isLogin, setIsLogin] = useState(preferredMode !== "register");
   const isAdminFlow = (roleFromUrl || "buyer").toLowerCase() === "admin";
   const isCompact = isLogin || isAdminFlow;
@@ -27,10 +30,22 @@ function AuthPage() {
   });
   
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  useEffect(() => {
+    if (prefilledEmail) {
+      setFormData((prev) => ({ ...prev, email: prefilledEmail }));
+    }
+    if (otpVerified) {
+      setInfo("OTP verified successfully. Please login.");
+      setIsLogin(true);
+    }
+  }, [prefilledEmail, otpVerified]);
   
   const handleSubmit = async(e) => {
     e.preventDefault();
     setError('');
+    setInfo('');
     
     if (!formData.email || !formData.password) {
       setError('Email and Password required');
@@ -82,16 +97,33 @@ function AuthPage() {
       return setError(data?.message || data?.error || rawText || fallbackMessage)
     }
 
+    if (!isLogin) {
+      const signupEmail = data?.data?.user?.email || formData.email;
+      if (!signupEmail) {
+        setError("Registration succeeded but email is missing. Please use Verify Email With OTP.");
+        return;
+      }
+
+      navigate("/verify-otp", {
+        replace: true,
+        state: {
+          email: signupEmail,
+          autoSent: false,
+          fromSignup: true,
+          mode: "verify",
+        },
+      });
+      return;
+    }
+
     if (!data?.data?.accessToken || !data?.data?.user) {
       setError("Unexpected server response. Please try again.");
       return;
     }
-  
-    localStorage.setItem("userToken",data.data.accessToken);
-    localStorage.setItem("userInfo", JSON.stringify(data.data.user));
 
     handleLogin({
       token:data.data.accessToken,
+      refreshToken: data?.data?.refreshToken,
       user:data.data.user
     })
     
@@ -112,7 +144,11 @@ function AuthPage() {
     
   }catch (error) {
     console.error(error)
-     setError("Could not reach server. Check backend is running.");
+     setError(
+      error?.message
+        ? `Could not reach server (${error.message}). Check backend is running.`
+        : "Could not reach server. Check backend is running."
+     );
   }
   } 
     
@@ -193,6 +229,11 @@ function AuthPage() {
                 {error}
               </div>
             )}
+            {info && (
+              <div className="text-emerald-700 text-sm bg-emerald-50 p-3 rounded-lg">
+                {info}
+              </div>
+            )}
             <button
               type="submit"
               className="w-full rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700 sm:text-base"
@@ -200,6 +241,15 @@ function AuthPage() {
               {isLogin ? "Sign In" : "Register"} as{" "}
             {formData.role.charAt(0).toUpperCase() + formData.role.slice(1)}
             </button>
+            {!isAdminFlow && (
+              <button
+                type="button"
+                onClick={() => navigate("/verify-otp", { state: { email: formData.email } })}
+                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:text-base"
+              >
+                Verify Email With OTP
+              </button>
+            )}
             <div className='text-center mt-4'>
               <button
                 type='button'

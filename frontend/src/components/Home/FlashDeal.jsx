@@ -3,11 +3,18 @@ import { Zap } from "lucide-react";
 import FlashDealCard from "./FlashDealCard";
 import { ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { fetchProducts } from "../../lib/productApi";
+import { fetchProducts, getCachedProductsSnapshot } from "../../lib/productApi";
+
+const pickFlashProducts = (list = []) =>
+  [...list]
+    .sort((a, b) => Number(b?.rating || 0) - Number(a?.rating || 0))
+    .slice(0, 6);
 
 function FlashDeal() {
   const navigate = useNavigate();
-  const [flashProducts, setFlashProducts] = useState([]);
+  const [flashProducts, setFlashProducts] = useState(() =>
+    pickFlashProducts(getCachedProductsSnapshot({ limit: 24, sort: "-createdAt" }))
+  );
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -18,14 +25,10 @@ function FlashDeal() {
         setError("");
         const rows = await fetchProducts({ limit: 24, sort: "-createdAt" });
         if (!mounted) return;
-        const list = Array.isArray(rows) ? rows : [];
-        const shortlisted = [...list]
-          .sort((a, b) => Number(b?.rating || 0) - Number(a?.rating || 0))
-          .slice(0, 6);
-        setFlashProducts(shortlisted);
+        setFlashProducts(pickFlashProducts(Array.isArray(rows) ? rows : []));
       } catch (err) {
         if (!mounted) return;
-        setFlashProducts([]);
+        setFlashProducts((current) => (current.length > 0 ? current : []));
         setError(err?.message || "Failed to load flash deals");
       }
     };

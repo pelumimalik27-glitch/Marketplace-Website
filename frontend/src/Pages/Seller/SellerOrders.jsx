@@ -5,6 +5,7 @@ import {
   fetchSellerOrders,
   updateOrderStatus,
 } from "../../lib/sellerApi";
+import { formatNaira } from "../../lib/currency";
 
 const asId = (value) => {
   if (!value) return "";
@@ -13,7 +14,7 @@ const asId = (value) => {
   return String(value);
 };
 
-const money = (value) => `$${Number(value || 0).toFixed(2)}`;
+const money = (value) => formatNaira(value);
 
 const labelize = (value) => {
   if (!value) return "Unknown";

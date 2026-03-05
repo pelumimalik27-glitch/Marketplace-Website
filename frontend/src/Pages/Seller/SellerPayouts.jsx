@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppContext } from "../../contexts/AppContext";
 import { fetchMySellerProfile, fetchSellerOrders } from "../../lib/sellerApi";
+import { formatNaira } from "../../lib/currency";
 
 const asId = (value) => {
   if (!value) return "";
@@ -10,7 +11,7 @@ const asId = (value) => {
   return String(value);
 };
 
-const money = (value) => `$${Number(value || 0).toFixed(2)}`;
+const money = (value) => formatNaira(value);
 
 function SellerPayouts() {
   const navigate = useNavigate();

@@ -2,8 +2,9 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppContext } from "../../contexts/AppContext";
 import { fetchMySellerProfile, fetchSellerOrders } from "../../lib/sellerApi";
+import { formatNaira } from "../../lib/currency";
 
-const money = (value) => `$${Number(value || 0).toFixed(2)}`;
+const money = (value) => formatNaira(value);
 
 const customerName = (customer) => {
   if (!customer) return "Unknown";

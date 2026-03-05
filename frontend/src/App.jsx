@@ -13,9 +13,11 @@ import OrderPage from './Pages/Order/OrderPage';
 import ProductDetailPage from './Pages/Product/ProductDetailPage';
 import CartPage from './Pages/Cart/CartPage';
 import CheckoutPage from './Pages/Checkout/CheckoutPage';
+import PaymentCallbackPage from './Pages/Checkout/PaymentCallbackPage';
 import DisputePage from './Pages/Dispute/DisputePage';
 import AdminLayout from './Pages/Admin/AdminLayout';
 import AdminDashboard from './Pages/Admin/AdminDashboard';
+import VerifyOtp from './Pages/OTPPAGE/VERIFYOTP';
 
 // Seller Pages
 import SellerLayout from './Pages/Seller/SellerLayout';
@@ -27,16 +29,17 @@ import SellerMessages from './Pages/Seller/SellerMessage';
 import SellerSettings from './Pages/Seller/SellerSetting';
 import SellerProducts from './Pages/Seller/SellerProduct';
 import SellersCustomers from './Pages/Seller/SellerCustomers';
+import BuyerMessages from './Pages/Buyer/BuyerMessage';
 
 
 
 
 function App() {
-  const { isLogin, user } = useContext(AppContext);
+  const { isLogin, user, authReady } = useContext(AppContext);
   const location = useLocation();
 
   const requireLogin = (element) => (
-    isLogin ? (
+    !authReady ? null : isLogin ? (
       element
     ) : (
       <Navigate
@@ -56,31 +59,67 @@ function App() {
       <Route path="/authpage" element={<AuthPage />} />
       <Route path="/login" element={<Navigate to="/authpage?mode=login" replace />} />
       <Route path="/register" element={<Navigate to="/authpage?mode=register" replace />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/checkout/verify" element={<PaymentCallbackPage />} />
       
    
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="product/:id" element={requireLogin(<ProductDetailPage />)} />
         <Route path="shoppage" element={<ShopPage />} />
+        <Route
+          path="messages"
+          element={
+            !authReady
+              ? null
+              : isLogin
+                ? <BuyerMessages />
+                : <Navigate to="/authpage?mode=login" replace state={{ redirectTo: "/messages", mode: "login" }} />
+          }
+        />
       </Route>
 
    
       <Route path="/" element={<Layout />}>
         <Route 
           path="cart" 
-          element={isLogin ? <CartPage /> : <Navigate to="/authpage?mode=login" replace state={{ redirectTo: "/cart", mode: "login" }} />} 
+          element={
+            !authReady
+              ? null
+              : isLogin
+                ? <CartPage />
+                : <Navigate to="/authpage?mode=login" replace state={{ redirectTo: "/cart", mode: "login" }} />
+          }
         />
         <Route 
           path="checkout" 
-          element={isLogin ? <CheckoutPage /> : <Navigate to="/authpage?mode=login" replace state={{ redirectTo: "/checkout", mode: "login" }} />} 
+          element={
+            !authReady
+              ? null
+              : isLogin
+                ? <CheckoutPage />
+                : <Navigate to="/authpage?mode=login" replace state={{ redirectTo: "/checkout", mode: "login" }} />
+          }
         />
         <Route 
           path="orderpage" 
-          element={isLogin ? <OrderPage /> : <Navigate to="/authpage?mode=login" replace state={{ redirectTo: "/orderpage", mode: "login" }} />} 
+          element={
+            !authReady
+              ? null
+              : isLogin
+                ? <OrderPage />
+                : <Navigate to="/authpage?mode=login" replace state={{ redirectTo: "/orderpage", mode: "login" }} />
+          }
         />
         <Route 
           path="dispute/:orderId" 
-          element={isLogin ? <DisputePage /> : <Navigate to="/authpage?mode=login" replace state={{ mode: "login" }} />} 
+          element={
+            !authReady
+              ? null
+              : isLogin
+                ? <DisputePage />
+                : <Navigate to="/authpage?mode=login" replace state={{ mode: "login" }} />
+          }
         />
       </Route>
 
@@ -88,7 +127,9 @@ function App() {
 <Route 
   path="/seller/*" 
    element={
-    isLogin && user?.roles?.includes("seller") 
+    !authReady
+      ? null
+      : isLogin && user?.roles?.includes("seller")
       ? <SellerLayout /> 
       : <Navigate to="/" replace />
   }
@@ -106,7 +147,9 @@ function App() {
 <Route
   path="/admin/*"
   element={
-    isLogin && user?.roles?.includes("admin")
+    !authReady
+      ? null
+      : isLogin && user?.roles?.includes("admin")
       ? <AdminLayout />
       : <Navigate to="/authpage?mode=login&role=admin" replace state={{ mode: "login" }} />
   }

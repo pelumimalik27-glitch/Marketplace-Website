@@ -1,11 +1,14 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { CreditCard, Truck, Shield } from 'lucide-react';
 import { AppContext } from '../../contexts/AppContext';
+import { createOrder } from '../../lib/orderApi';
+import { initializePayment } from '../../lib/paymentApi';
+import { formatNaira } from '../../lib/currency';
+
+const isObjectId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ''));
 
 function CheckoutPage() {
-  const navigate = useNavigate();
-  const { cart, groupCartBySeller, placeOrder, user } = useContext(AppContext);
+  const { cart, groupCartBySeller, user } = useContext(AppContext);
   
   const [shippingInfo, setShippingInfo] = useState({
     fullName: user?.name || '',
@@ -24,35 +27,85 @@ function CheckoutPage() {
     expiry: '',
     cvv: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   
   const sellerGroups = groupCartBySeller();
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const shipping = Object.values(sellerGroups).reduce((sum, group) => sum + group.shipping, 0);
   const total = subtotal + shipping;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError('');
     
     if (cart.length === 0) {
       alert('Your cart is empty');
       return;
     }
-    
-    // Process order
-    const orderData = {
-      customer: shippingInfo,
-      items: cart,
-      shippingInfo,
-      paymentMethod,
-      subtotal,
-      shipping,
-      total,
-    };
-    
-    const newOrder = placeOrder(orderData);
-    
-    // Navigate to order confirmation
-    navigate(`/order-confirmation/${newOrder.id}`);
+
+    if (!user?.userId) {
+      setSubmitError('Please login to continue checkout.');
+      return;
+    }
+
+    if (paymentMethod !== 'credit_card') {
+      setSubmitError('Only card checkout is enabled right now.');
+      return;
+    }
+
+    const invalidItem = cart.find((item) => !isObjectId(item.id) || !isObjectId(item.sellerId));
+    if (invalidItem) {
+      setSubmitError('Some cart items cannot be checked out yet. Re-add products from the latest shop list.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const items = cart.map((item) => {
+        const qty = Math.max(1, Number(item.qty || 1));
+        const price = Number(item.price || 0);
+        return {
+          product: item.id,
+          seller: item.sellerId,
+          quantity: qty,
+          price,
+          total: Number((price * qty).toFixed(2)),
+        };
+      });
+
+      const orderPayload = {
+        buyer: user.userId,
+        items,
+        summary: {
+          subtotal: Number(subtotal.toFixed(2)),
+          shipping: Number(shipping.toFixed(2)),
+          tax: 0,
+          discount: 0,
+          total: Number(total.toFixed(2)),
+        },
+        shippingInfo,
+      };
+
+      const orderResponse = await createOrder(orderPayload);
+      const orderId = orderResponse?.data?._id;
+      if (!orderId) {
+        throw new Error('Order was not created');
+      }
+
+      const paymentResponse = await initializePayment(orderId, '/checkout/verify');
+      const authUrl = paymentResponse?.authorization_url;
+      if (!authUrl) {
+        throw new Error('Failed to start payment');
+      }
+
+      window.location.assign(authUrl);
+    } catch (error) {
+      setSubmitError(error.message || 'Checkout failed');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -147,6 +200,7 @@ function CheckoutPage() {
                   <option value="CA">Canada</option>
                   <option value="UK">United Kingdom</option>
                   <option value="AU">Australia</option>
+                  <option value="NI">Nigeria</option>
                 </select>
               </div>
             </div>
@@ -250,12 +304,12 @@ function CheckoutPage() {
                   {group.items.map(item => (
                     <div key={item.id} className="flex justify-between text-sm mt-2">
                       <span>{item.name} × {item.qty}</span>
-                      <span>${(item.price * item.qty).toFixed(2)}</span>
+                      <span>{formatNaira(item.price * item.qty)}</span>
                     </div>
                   ))}
                   <div className="flex justify-between text-sm mt-2">
                     <span>Shipping</span>
-                    <span>{group.shipping === 0 ? 'FREE' : `$${group.shipping}`}</span>
+                    <span>{group.shipping === 0 ? 'FREE' : formatNaira(group.shipping)}</span>
                   </div>
                 </div>
               ))}
@@ -263,17 +317,17 @@ function CheckoutPage() {
               <div className="space-y-2 pt-4 border-t">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>{formatNaira(subtotal)}</span>
                 </div>
                 
                 <div className="flex justify-between">
                   <span>Shipping</span>
-                  <span>${shipping.toFixed(2)}</span>
+                  <span>{formatNaira(shipping)}</span>
                 </div>
                 
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Total</span>
-                  <span className="text-orange-600">${total.toFixed(2)}</span>
+                  <span className="text-orange-600">{formatNaira(total)}</span>
                 </div>
               </div>
             </div>
@@ -285,10 +339,14 @@ function CheckoutPage() {
             
             <button
               type="submit"
-              className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 font-medium"
+              disabled={isSubmitting}
+              className="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 font-medium disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Place Order
+              {isSubmitting ? 'Redirecting to payment...' : 'Pay with Paystack'}
             </button>
+            {submitError && (
+              <p className="mt-3 text-sm text-red-600">{submitError}</p>
+            )}
             
             <p className="text-xs text-gray-500 mt-4 text-center">
               By placing your order, you agree to our Terms of Service and Privacy Policy

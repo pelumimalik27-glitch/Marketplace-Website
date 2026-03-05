@@ -1,5 +1,8 @@
 import React from "react";
 import { Filter } from "lucide-react";
+import { formatNaira } from "../../lib/currency";
+
+const MAX_PRICE = 1000000;
 
 function FilterPanel({ filter, setFilter }) {
   const categories = ["All", "Electronics", "Fashion", "Home & Garden", "Sports"];
@@ -47,20 +50,20 @@ function FilterPanel({ filter, setFilter }) {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
           <label className="text-sm font-medium">Price Range</label>
-          <span className="text-orange-600 font-bold">${filter.price}</span>
+          <span className="text-orange-600 font-bold">{formatNaira(filter.price)}</span>
         </div>
         <input
           type="range"
           min="0"
-          max="1000"
-          step="10"
+          max={MAX_PRICE}
+          step="1000"
           value={filter.price}
           onChange={e => setFilter({...filter, price: +e.target.value})}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
         />
         <div className="flex justify-between text-sm text-gray-500 mt-1">
-          <span>$0</span>
-          <span>$1000</span>
+          <span>{formatNaira(0)}</span>
+          <span>{formatNaira(MAX_PRICE)}</span>
         </div>
       </div>
 
@@ -121,7 +124,7 @@ function FilterPanel({ filter, setFilter }) {
       <button
         onClick={() => setFilter({
           category: 'All',
-          price: 1000,
+          price: MAX_PRICE,
           freeShipping: false,
           inStock: false,
           sellerVerified: false,

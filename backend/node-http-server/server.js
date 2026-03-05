@@ -1,8 +1,11 @@
+require("dotenv").config();
 const express = require("express");
+const http = require("http");
 const path = require("path");
+const { createProxyMiddleware } = require("http-proxy-middleware");
 const connectDB = require("./database/dbconnection");
 const { authRouter } = require("./src/modules/users/user.router");
-require("dotenv").config();
+const { initSocket } = require("./src/lib/socket");
 
 const app = express();
 const cors = require('cors');
@@ -17,6 +20,7 @@ const { reviewRouter } = require("./src/modules/reviews/review.router");
 const { messageRouter } = require("./src/modules/messages/message.router");
 const { conversationRouter } = require("./src/modules/conversations/conversation.router");
 const { syncAdminFromEnv } = require("./src/modules/admins/admin.bootstrap");
+const { paymentRouter } = require("./src/modules/payment/payment.router");
 
 const EXPRESSPORT = Number(process.env.PORT) || 6000;
 const defaultOrigins = [
@@ -48,8 +52,33 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  "/api/v1/mail",
+  createProxyMiddleware({
+    target: (process.env.MESSAGE_SERVICE_URL || "http://localhost:7000").replace(/\/+$/, ""),
+    changeOrigin: true,
+    proxyTimeout: 15000,
+    timeout: 15000,
+    pathRewrite: (path) => {
+      if (path.startsWith("/api/v1/mail/")) return path;
+      if (path === "/api/v1/mail") return "/api/v1/mail";
+      if (path.startsWith("/")) return `/api/v1/mail${path}`;
+      return `/api/v1/mail/${path}`;
+    },
+    onError(err, req, res) {
+      if (res.headersSent) return;
+      res.writeHead(502, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          success: false,
+          message: `Mail service unavailable: ${err?.message || "proxy error"}`,
+        })
+      );
+    },
+  })
+);
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/api/v1/health", (req, res) => {
@@ -66,10 +95,10 @@ app.use('/api/v1/cart', cartRouter);
 app.use('/api/v1/orders', orderRouter);
 app.use('/api/v1/disputes', disputeRouter);
 app.use('/api/v1/reviews', reviewRouter);
-// app.use('/api/v1/payouts', payoutRouter);
+app.use('/api/v1/payouts', paymentRouter);
 app.use('/api/v1/messages', messageRouter);
 app.use('/api/v1/conversations', conversationRouter);
-
+app.use('/api/v1/payment',paymentRouter)
 
 
 
@@ -103,7 +132,14 @@ const startServer = async () => {
     }
   }
 
-  const server = app.listen(EXPRESSPORT, () => {
+  const server = http.createServer(app);
+  initSocket({
+    server,
+    corsOrigins: allowedOrigins,
+    jwtSecret: process.env.JWT_SECRETE || "dev-secret",
+  });
+
+  server.listen(EXPRESSPORT, () => {
     console.log(`Server is running on http://localhost:${EXPRESSPORT}/`);
   });
 

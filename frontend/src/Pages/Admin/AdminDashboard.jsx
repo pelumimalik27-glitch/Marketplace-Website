@@ -5,8 +5,9 @@ import {
   fetchPendingSellers,
   rejectPendingSeller,
 } from "../../lib/adminApi";
+import { formatNaira } from "../../lib/currency";
 
-const money = (value) => `$${Number(value || 0).toFixed(2)}`;
+const money = (value) => formatNaira(value);
 
 function AdminDashboard() {
   const [loading, setLoading] = useState(true);

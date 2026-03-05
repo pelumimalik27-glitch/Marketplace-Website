@@ -1,13 +1,25 @@
 
 import React, { createContext, useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { buildApiUrl } from "../lib/api";
+import {
+  clearSession,
+  getAccessToken,
+  getRefreshToken,
+  getStoredUser,
+  getValidAccessToken,
+  saveSession,
+} from "../lib/authSession";
 
 
 const AppContext = createContext();
 
 const AppProvider = ({ children }) => {
-  const [isLogin, setIsLogin] = useState(false);
-  const [user, setUser] = useState(null);
+  const initialUser = getStoredUser();
+  const initialToken = getAccessToken();
+  const [isLogin, setIsLogin] = useState(Boolean(initialUser && initialToken));
+  const [user, setUser] = useState(initialUser || null);
+  const [authReady, setAuthReady] = useState(false);
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sellers, setSellers] = useState([
@@ -26,36 +38,40 @@ const AppProvider = ({ children }) => {
   const navigate = useNavigate();
   const searchRef = useRef();
 
-  const isTokenExpired = (token) => {
-    try {
-      const payloadBase64 = token.split(".")[1];
-      if (!payloadBase64) return true;
-      const payload = JSON.parse(atob(payloadBase64));
-      if (!payload?.exp) return false;
-      return Date.now() >= payload.exp * 1000;
-    } catch (_) {
-      return true;
+  const handleLogin = ({ token, refreshToken, user }) => {
+    const activeToken = token || getAccessToken();
+    if (!activeToken) {
+      return;
     }
-  };
 
-  const handleLogin = ({token,user}) => {
-    if (token) {
-      localStorage.setItem("userToken", token);
-    }
-    if (user) {
-      localStorage.setItem("userInfo", JSON.stringify(user));
-    }
+    saveSession({
+      accessToken: activeToken,
+      refreshToken,
+      user,
+    });
     setIsLogin(true);
     setUser(user);
+    setAuthReady(true);
    
   };
 
-  const handleLogout = () => {
-     setIsLogin(false);
+  const handleLogout = async () => {
+    try {
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        await fetch(buildApiUrl("/auth/logout"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch (_) {
+      // Ignore logout API errors; local session is still cleared below.
+    }
+
+    setIsLogin(false);
     setUser(null);
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("userInfo");
-    localStorage.removeItem("userRole");
+    clearSession();
     navigate("/authpage");
   };
 
@@ -64,34 +80,48 @@ const AppProvider = ({ children }) => {
   };
 
 useEffect(() => {
-  const token = localStorage.getItem("userToken");
-  const rawUser = localStorage.getItem("userInfo");
+  let mounted = true;
 
-  if (!token || !rawUser || isTokenExpired(token)) {
-    setIsLogin(false);
-    setUser(null);
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("userInfo");
-    localStorage.removeItem("userRole");
-    return;
-  }
+  const bootstrapSession = async () => {
+    try {
+      const storedUser = getStoredUser();
+      if (!storedUser) {
+        if (!mounted) return;
+        setIsLogin(false);
+        setUser(null);
+        clearSession();
+        setAuthReady(true);
+        return;
+      }
 
-  try {
-    const storedUser = JSON.parse(rawUser);
-    if (storedUser) {
-      setUser(storedUser);
+      const token = await getValidAccessToken();
+      if (!token) {
+        if (!mounted) return;
+        setIsLogin(false);
+        setUser(null);
+        clearSession();
+        setAuthReady(true);
+        return;
+      }
+
+      const latestUser = getStoredUser() || storedUser;
+      if (!mounted) return;
+      setUser(latestUser);
       setIsLogin(true);
-      return;
+      setAuthReady(true);
+    } catch (_) {
+      if (!mounted) return;
+      clearSession();
+      setIsLogin(false);
+      setUser(null);
+      setAuthReady(true);
     }
-  } catch (_) {
-    // Fall through and clear invalid persisted session data.
-  }
+  };
 
-  localStorage.removeItem("userToken");
-  localStorage.removeItem("userInfo");
-  localStorage.removeItem("userRole");
-  setIsLogin(false);
-  setUser(null);
+  bootstrapSession();
+  return () => {
+    mounted = false;
+  };
 }, []);
 
 
@@ -215,6 +245,7 @@ useEffect(() => {
         searchTerm,
         handleSearch,
         searchRef,
+        authReady,
         handleLogin,
         handleLogout,
         orders,

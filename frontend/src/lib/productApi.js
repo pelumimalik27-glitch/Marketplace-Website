@@ -1,9 +1,13 @@
 import { buildApiUrl } from "./api";
-import localProducts from "../components/Data/Product";
 
-const PRODUCT_CACHE_KEY = "product_cache_v1";
-const PRODUCT_CACHE_MIGRATION_KEY = "product_cache_to_backend_migrated_v1";
-const hasLocalStorage = typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+const PRODUCT_CACHE_KEY = "product_cache_v2";
+const LEGACY_CACHE_KEY = "cached_products";
+const hasLocalStorage =
+  typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+const REQUEST_TIMEOUT_MS = 8000;
+
+let lastProductFetchSource = "backend";
+const inFlightProductsByPath = new Map();
 
 const asId = (value) => {
   if (!value) return "";
@@ -23,10 +27,20 @@ const toBoolean = (value, fallback = false) => {
   return Boolean(value);
 };
 
+const isLikelyObjectId = (value) => /^[a-f0-9]{24}$/i.test(asId(value));
+const hasRealSellerLink = (item = {}) => isLikelyObjectId(item?.sellerId);
+
 const getImage = (item = {}) => {
   if (item.image) return String(item.image);
   if (Array.isArray(item.images) && item.images[0]) return String(item.images[0]);
   return "";
+};
+
+const fingerprint = (item = {}) => {
+  const name = String(item?.name || "").trim().toLowerCase();
+  const category = String(item?.category || "").trim().toLowerCase();
+  const sellerId = String(item?.sellerId || "").trim().toLowerCase();
+  return `${name}::${category}::${sellerId}`;
 };
 
 const normalize = (item = {}) => {
@@ -40,12 +54,18 @@ const normalize = (item = {}) => {
     sellerId: sellerId || "unknown-seller",
     seller:
       item?.sellerName ||
+      item?.sellerId?.storeName ||
       item?.seller?.name ||
       item?.seller?.storeName ||
       item?.seller ||
-      "Unknown Seller",
+      "",
     image: getImage(item),
-    images: Array.isArray(item.images) && item.images.length ? item.images : getImage(item) ? [getImage(item)] : [],
+    images:
+      Array.isArray(item.images) && item.images.length
+        ? item.images
+        : getImage(item)
+          ? [getImage(item)]
+          : [],
     price: toNumber(item.price, 0),
     rating: toNumber(item.rating, 0),
     reviews: toNumber(item.reviews, 0),
@@ -60,10 +80,15 @@ const readCachedProducts = () => {
   if (!hasLocalStorage) return [];
   try {
     const raw = localStorage.getItem(PRODUCT_CACHE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    const list = Array.isArray(parsed?.items) ? parsed.items : [];
-    return list.map(normalize);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed?.items) ? parsed.items : [];
+      return dedupeProducts(list).filter(
+        (item) => isLikelyObjectId(item?._id || item?.id) && hasRealSellerLink(item)
+      );
+    }
+
+    return [];
   } catch (_) {
     return [];
   }
@@ -72,42 +97,47 @@ const readCachedProducts = () => {
 const writeCachedProducts = (items = []) => {
   if (!hasLocalStorage) return;
   try {
+    const rows = dedupeProducts(items);
     localStorage.setItem(
       PRODUCT_CACHE_KEY,
       JSON.stringify({
         savedAt: new Date().toISOString(),
-        items,
+        items: rows,
       })
     );
+    // Keep old key updated for compatibility with older code paths.
+    localStorage.setItem(LEGACY_CACHE_KEY, JSON.stringify(rows));
   } catch (_) {
-    // Ignore localStorage write errors to avoid breaking product browsing.
+    // Ignore cache write errors to avoid breaking product browsing.
   }
 };
 
-const readMigrationFlag = () => {
-  if (!hasLocalStorage) return false;
-  try {
-    return localStorage.getItem(PRODUCT_CACHE_MIGRATION_KEY) === "true";
-  } catch (_) {
-    return false;
-  }
+const isNetworkFailure = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    error instanceof TypeError ||
+    message.includes("failed to fetch") ||
+    message.includes("networkerror") ||
+    message.includes("network request failed") ||
+    message.includes("load failed") ||
+    message.includes("timeout")
+  );
 };
 
-const writeMigrationFlag = (value) => {
-  if (!hasLocalStorage) return;
-  try {
-    localStorage.setItem(PRODUCT_CACHE_MIGRATION_KEY, value ? "true" : "false");
-  } catch (_) {
-    // Ignore localStorage write errors.
+const dedupeProducts = (items = []) => {
+  const seenIds = new Set();
+  const seenFingerprint = new Set();
+  const rows = [];
+  for (const item of items.map(normalize)) {
+    const id = asId(item?.id || item?._id);
+    if (id && seenIds.has(id)) continue;
+    if (id) seenIds.add(id);
+    const key = fingerprint(item);
+    if (key && seenFingerprint.has(key)) continue;
+    if (key) seenFingerprint.add(key);
+    rows.push(item);
   }
-};
-
-const productKey = (item = {}) => {
-  const name = String(item?.name || "").trim().toLowerCase();
-  const category = String(item?.category || "").trim().toLowerCase();
-  const price = toNumber(item?.price, 0).toFixed(2);
-  const sellerId = asId(item?.sellerId);
-  return `${name}::${category}::${price}::${sellerId}`;
+  return rows;
 };
 
 const sortProducts = (items = [], sort = "") => {
@@ -140,165 +170,74 @@ const applyOptions = (items = [], options = {}) => {
 };
 
 const requestProducts = async (path) => {
-  const response = await fetch(buildApiUrl(path), {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload?.message || "Failed to load products");
-  }
-  return payload;
-};
-
-const isValidObjectId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ""));
-
-const toCreatePayload = (item = {}) => {
-  const sellerId = asId(item?.sellerId);
-  const image = getImage(item);
-  const images =
-    Array.isArray(item?.images) && item.images.length
-      ? item.images.map((img) => String(img))
-      : image
-      ? [image]
-      : [];
-
-  const payload = {
-    name: String(item?.name || "").trim(),
-    description: String(item?.description || "").trim(),
-    image,
-    images,
-    price: toNumber(item?.price, 0),
-    category: String(item?.category || "").trim(),
-    inventory: { quantity: toNumber(item?.inventory?.quantity ?? item?.quantity, 0) },
-    status: String(item?.status || "active"),
-  };
-
-  if (isValidObjectId(sellerId)) {
-    payload.sellerId = sellerId;
-  }
-
-  return payload;
-};
-
-const createProduct = async (item = {}) => {
-  const response = await fetch(buildApiUrl("/products"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(toCreatePayload(item)),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload?.message || "Failed to create product");
-  }
-  return payload;
-};
-
-const migrateProductsToBackend = async (sourceItems = []) => {
-  const normalized = sourceItems.map(normalize).filter((item) => String(item?.name || "").trim());
-  if (!normalized.length) return false;
-
-  const results = await Promise.allSettled(normalized.map((item) => createProduct(item)));
-  const successCount = results.filter((result) => result.status === "fulfilled").length;
-  if (successCount > 0) {
-    writeMigrationFlag(true);
-    return true;
-  }
-  return false;
-};
-
-const syncMissingProductsToBackend = async (sourceItems = [], backendItems = []) => {
-  const normalizedSource = sourceItems.map(normalize).filter((item) => String(item?.name || "").trim());
-  if (!normalizedSource.length) return false;
-
-  const existingKeys = new Set(backendItems.map((item) => productKey(normalize(item))));
-  const seen = new Set();
-  const missing = [];
-
-  for (const item of normalizedSource) {
-    const key = productKey(item);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    if (!existingKeys.has(key)) {
-      missing.push(item);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(buildApiUrl(path), {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.message || "Failed to load products");
     }
+    return payload;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Request timeout");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  if (missing.length === 0) {
-    writeMigrationFlag(true);
-    return false;
-  }
-
-  const results = await Promise.allSettled(missing.map((item) => createProduct(item)));
-  const successCount = results.filter((result) => result.status === "fulfilled").length;
-  if (successCount > 0) {
-    writeMigrationFlag(true);
-    return true;
-  }
-  return false;
 };
 
-const upsertProductInCache = (product) => {
-  const cached = readCachedProducts();
-  const id = asId(product?.id || product?._id);
-  if (!id) return;
-  const existsAt = cached.findIndex((item) => asId(item?.id) === id);
-  if (existsAt >= 0) {
-    cached[existsAt] = normalize({ ...cached[existsAt], ...product });
-  } else {
-    cached.unshift(normalize(product));
+const buildProductsPath = (options = {}) => {
+  const params = new URLSearchParams();
+  const limitValue = Number(options?.limit);
+  const sortValue = String(options?.sort || "").trim();
+
+  if (Number.isFinite(limitValue) && limitValue > 0) {
+    params.set("limit", String(Math.trunc(limitValue)));
   }
-  writeCachedProducts(cached);
+  if (sortValue === "createdAt" || sortValue === "-createdAt") {
+    params.set("sort", sortValue);
+  }
+
+  const query = params.toString();
+  return query ? `/products?${query}` : "/products";
 };
+
+export const getLastProductFetchSource = () => lastProductFetchSource;
+export const getCachedProductsSnapshot = (options = {}) =>
+  applyOptions(readCachedProducts(), options);
 
 export const fetchProducts = async (options = {}) => {
+  const { useCacheOnError = true } = options;
   const cached = readCachedProducts();
-  const bundled = Array.isArray(localProducts) ? localProducts.map(normalize) : [];
-  const migrationSource = [...cached, ...bundled];
+  const path = buildProductsPath(options);
 
   try {
-    const payload = await requestProducts("/products");
-    const items = Array.isArray(payload?.data) ? payload.data.map(normalize) : [];
-
-    // Prefer backend data when present; sync missing local/cached records once.
-    if (items.length > 0) {
-      if (migrationSource.length > 0 && !readMigrationFlag()) {
-        const synced = await syncMissingProductsToBackend(migrationSource, items);
-        if (synced) {
-          const refreshedPayload = await requestProducts("/products");
-          const refreshedItems = Array.isArray(refreshedPayload?.data)
-            ? refreshedPayload.data.map(normalize)
-            : [];
-          writeCachedProducts(refreshedItems);
-          return applyOptions(refreshedItems, options);
-        }
-      }
-
-      writeCachedProducts(items);
-      return applyOptions(items, options);
+    if (!inFlightProductsByPath.has(path)) {
+      inFlightProductsByPath.set(
+        path,
+        requestProducts(path).finally(() => {
+          inFlightProductsByPath.delete(path);
+        })
+      );
     }
 
-    if (migrationSource.length > 0) {
-      const migrated = await migrateProductsToBackend(migrationSource);
-      if (migrated) {
-        const refreshedPayload = await requestProducts("/products");
-        const refreshedItems = Array.isArray(refreshedPayload?.data)
-          ? refreshedPayload.data.map(normalize)
-          : [];
-        if (refreshedItems.length > 0) {
-          writeCachedProducts(refreshedItems);
-          return applyOptions(refreshedItems, options);
-        }
-      }
-    }
-
-    if (cached.length > 0) {
-      return applyOptions(cached, options);
-    }
-
-    return [];
+    const payload = await inFlightProductsByPath.get(path);
+    const items = Array.isArray(payload?.data)
+      ? dedupeProducts(payload.data).filter(hasRealSellerLink)
+      : [];
+    writeCachedProducts(items);
+    lastProductFetchSource = "backend";
+    return applyOptions(items, options);
   } catch (error) {
-    if (cached.length > 0) {
+    if (useCacheOnError && cached.length > 0 && isNetworkFailure(error)) {
+      lastProductFetchSource = "cache";
       return applyOptions(cached, options);
     }
     throw new Error(error?.message || "Unable to load products");
@@ -317,7 +256,16 @@ export const fetchProductById = async (id) => {
     if (!product?.id) {
       throw new Error("Product not found");
     }
-    upsertProductInCache(product);
+
+    const cached = readCachedProducts();
+    const existsAt = cached.findIndex((item) => asId(item?.id) === product.id);
+    if (existsAt >= 0) {
+      cached[existsAt] = normalize({ ...cached[existsAt], ...product });
+    } else {
+      cached.unshift(product);
+    }
+    writeCachedProducts(cached);
+
     return product;
   } catch (error) {
     const cached = readCachedProducts();

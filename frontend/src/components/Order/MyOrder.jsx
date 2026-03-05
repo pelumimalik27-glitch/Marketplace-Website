@@ -1,4 +1,5 @@
 import { useOrder } from "../contexts/OrderContext";
+import { formatNaira } from "../../lib/currency";
 
 export default function MyOrders() {
   const { orders } = useOrder();
@@ -22,10 +23,10 @@ export default function MyOrders() {
         >
           <div className="flex justify-between items-start mb-3">
             <div>
-              <p className="font-bold text-lg">Order ${order.id}</p>
+              <p className="font-bold text-lg">Order #{order.id}</p>
               <p className="text-sm text-gray-500">{order.date}</p>
             </div>
-            <p className="text-xl font-bold">${order.total.toLocaleString()}</p>
+            <p className="text-xl font-bold">{formatNaira(order.total)}</p>
           </div>
 
           <div className="flex items-center gap-2 mb-3">

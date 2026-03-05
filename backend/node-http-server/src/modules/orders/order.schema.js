@@ -19,7 +19,9 @@ const orderSchema = new mongoose.Schema(
     discount: { type: Number, default: 0 },
     total: { type: Number, default: 0 }
   },
-  status: { type: String, enum: ["pending", "processing", "shipped", "completed", "cancelled"], default: "pending" }
+  status: { type: String, enum: ["pending", "processing", "shipped", "completed", "cancelled"], default: "pending" },
+  paymentReference:String,
+
 },
   { timestamps: true }
 );

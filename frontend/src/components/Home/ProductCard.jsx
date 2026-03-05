@@ -1,13 +1,12 @@
 import { Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useCart } from "../../contexts/CartContext";
 import { AppContext } from "../../contexts/AppContext";
 import { useContext } from "react";
+import { formatNaira } from "../../lib/currency";
 
 export default function ProductCard({ product }) {
-  const { addToCart } = useCart();
+  const { addToCart, isLogin } = useContext(AppContext);
   const navigate = useNavigate();
-  const { isLogin } = useContext(AppContext);
 
   const handleProductClick = () => {
     if (!isLogin) {
@@ -34,7 +33,7 @@ export default function ProductCard({ product }) {
       });
       return;
     }
-    addToCart(product);
+    addToCart(product, 1, product.sellerId || "unknown-seller");
   };
 
   return (
@@ -54,7 +53,7 @@ export default function ProductCard({ product }) {
           <span className="text-gray-400">({product.reviews})</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-orange-600 text-xl font-bold">${product.price}</span>
+          <span className="text-orange-600 text-xl font-bold">{formatNaira(product.price)}</span>
           {product.freeShipping && (
             <span className="border px-2 py-1 rounded-full text-xs">Free Shipping</span>
           )}

@@ -3,6 +3,7 @@ const sellerSchema = require("../sellers/seller.schema");
 const disputeSchema = require("../disputes/dispute.schema");
 const orderSchema = require("../orders/order.schema");
 const userSchema = require("../users/user.schema");
+const { notifySellerApproval } = require("../../lib/mail.notifier");
 
 const create = async (req, res) => {
   try {
@@ -55,6 +56,10 @@ const approveSellerApplication = async (req, res) => {
         user.roles = [...new Set([...roles, "seller"])];
         await user.save();
       }
+
+      notifySellerApproval({ email: user.email, name: user.name }).catch((error) => {
+        console.error(`Failed to send seller approval email to ${user.email}: ${error.message}`);
+      });
     }
 
     return res.status(200).json({

@@ -1,8 +1,15 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const userSchema = require("./user.schema");
 const adminSchema = require("../admins/admin.schema");
 const sellerSchema = require("../sellers/seller.schema");
+const { notifyWelcome, notifyLoginAlert } = require("../../lib/mail.notifier");
+
+const ACCESS_TOKEN_SECRET = process.env.JWT_SECRETE || "dev-secret";
+const ACCESS_TOKEN_EXPIRE = process.env.ACCESS_TOKEN_EXPIRE || process.env.JWT_EXPIRE || "15m";
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || ACCESS_TOKEN_SECRET;
+const REFRESH_TOKEN_EXPIRE = process.env.REFRESH_TOKEN_EXPIRE || "30d";
 
 const signAccessToken = (user) =>
   jwt.sign(
@@ -11,15 +18,42 @@ const signAccessToken = (user) =>
       email: user.email,
       roles: user.roles,
     },
-    process.env.JWT_SECRETE || "dev-secret",
-    { expiresIn: process.env.JWT_EXPIRE || "30d" }
+    ACCESS_TOKEN_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRE }
   );
+
+const signRefreshToken = (user) =>
+  jwt.sign(
+    {
+      userId: user._id,
+      email: user.email,
+      tokenType: "refresh",
+    },
+    REFRESH_TOKEN_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRE }
+  );
+
+const hashToken = (token = "") =>
+  crypto.createHash("sha256").update(String(token)).digest("hex");
+
+const issueSessionTokens = async (user) => {
+  const accessToken = signAccessToken(user);
+  const refreshToken = signRefreshToken(user);
+  const decoded = jwt.decode(refreshToken);
+
+  user.refreshTokenHash = hashToken(refreshToken);
+  user.refreshTokenExpiresAt = decoded?.exp ? new Date(decoded.exp * 1000) : null;
+  await user.save();
+
+  return { accessToken, refreshToken };
+};
 
 const toAuthUser = (user) => ({
   userId: user._id,
   name: user.name,
   email: user.email,
   roles: user.roles,
+  isVerified: Boolean(user.isVerified),
 });
 
 const registerUser = async (req, res) => {
@@ -43,25 +77,20 @@ const registerUser = async (req, res) => {
       roles: ["buyer"],
     });
 
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        email: user.email,
-        roles: user.roles,
-      },
-      process.env.JWT_SECRETE || "dev-secret",
-      { expiresIn: process.env.JWT_EXPIRE || "30d" }
-    );
+    notifyWelcome({ email: user.email, name: user.name }).catch((error) => {
+      console.error(`Failed to send welcome email to ${user.email}: ${error.message}`);
+    });
 
     return res.status(201).json({
       success: true,
+      message: "Registration successful. Verify OTP before login.",
       data: {
-        accessToken: token,
         user: {
           userId: user._id,
           name: user.name,
           email: user.email,
           roles: user.roles,
+          isVerified: Boolean(user.isVerified),
         },
       },
     });
@@ -84,6 +113,13 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Email not verified. Please verify OTP before login.",
+      });
+    }
+
     if (user.roles.includes("admin")) {
       return res.status(403).json({
         success: false,
@@ -91,26 +127,28 @@ const loginUser = async (req, res) => {
       });
     }
 
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        email: user.email,
-        roles: user.roles,
-      },
-      process.env.JWT_SECRETE || "dev-secret",
-      { expiresIn: process.env.JWT_EXPIRE || "30d" }
-    );
+    const { accessToken, refreshToken } = await issueSessionTokens(user);
+
+    notifyWelcome({ email: user.email, name: user.name }).catch((error) => {
+      console.error(`Failed to send welcome email on login to ${user.email}: ${error.message}`);
+    });
+
+    notifyLoginAlert({ email: user.email, name: user.name }).catch((error) => {
+      console.error(`Failed to send login alert email to ${user.email}: ${error.message}`);
+    });
 
     return res.status(200).json({
       success: true,
       message: "login Successfully",
       data: {
-        accessToken: token,
+        accessToken,
+        refreshToken,
         user: {
           userId: user._id,
           name: user.name,
           email: user.email,
           roles: user.roles,
+          isVerified: Boolean(user.isVerified),
         },
       },
     });
@@ -146,17 +184,7 @@ const adminLogin = async (req, res) => {
       return res.status(403).json({ success: false, message: "Admin account not active" });
     }
 
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        email: user.email,
-        roles: user.roles,
-        adminRole: admin.role,
-        permissions: admin.permissions || [],
-      },
-      process.env.JWT_SECRETE || "dev-secret",
-      { expiresIn: process.env.JWT_EXPIRE || "30d" }
-    );
+    const { accessToken, refreshToken } = await issueSessionTokens(user);
 
     admin.lastLogin = new Date();
     await admin.save();
@@ -164,7 +192,8 @@ const adminLogin = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: {
-        accessToken: token,
+        accessToken,
+        refreshToken,
         user: {
           userId: user._id,
           name: user.name,
@@ -177,6 +206,84 @@ const adminLogin = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const refreshSession = async (req, res) => {
+  try {
+    const refreshToken =
+      String(req.body?.refreshToken || req.headers["x-refresh-token"] || "").trim();
+
+    if (!refreshToken) {
+      return res.status(401).json({ success: false, message: "Refresh token is required" });
+    }
+
+    const payload = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
+    if (payload?.tokenType && payload.tokenType !== "refresh") {
+      return res.status(401).json({ success: false, message: "Invalid refresh token type" });
+    }
+
+    const user = await userSchema.findById(payload?.userId);
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Invalid refresh token" });
+    }
+
+    if (!user.refreshTokenHash || user.refreshTokenHash !== hashToken(refreshToken)) {
+      return res.status(401).json({ success: false, message: "Refresh token revoked" });
+    }
+
+    if (user.refreshTokenExpiresAt && user.refreshTokenExpiresAt.getTime() < Date.now()) {
+      user.refreshTokenHash = "";
+      user.refreshTokenExpiresAt = null;
+      await user.save();
+      return res.status(401).json({ success: false, message: "Refresh token expired" });
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } = await issueSessionTokens(user);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        accessToken,
+        refreshToken: newRefreshToken,
+        user: toAuthUser(user),
+      },
+    });
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid or expired refresh token" });
+  }
+};
+
+const logoutSession = async (req, res) => {
+  try {
+    const refreshToken =
+      String(req.body?.refreshToken || req.headers["x-refresh-token"] || "").trim();
+
+    if (!refreshToken) {
+      return res.status(200).json({ success: true, message: "Logged out" });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
+    } catch (_) {
+      return res.status(200).json({ success: true, message: "Logged out" });
+    }
+
+    const user = await userSchema.findById(payload?.userId);
+    if (!user) {
+      return res.status(200).json({ success: true, message: "Logged out" });
+    }
+
+    if (user.refreshTokenHash === hashToken(refreshToken)) {
+      user.refreshTokenHash = "";
+      user.refreshTokenExpiresAt = null;
+      await user.save();
+    }
+
+    return res.status(200).json({ success: true, message: "Logged out" });
+  } catch (error) {
+    return res.status(200).json({ success: true, message: "Logged out" });
   }
 };
 
@@ -315,12 +422,10 @@ const getSellerApplicationStatus = async (req, res) => {
       });
     }
 
-    let roleChanged = false;
     const currentRoles = Array.isArray(user.roles) ? user.roles : [];
     if (sellerApplication.status === "approved" && !currentRoles.includes("seller")) {
       user.roles = [...new Set([...currentRoles, "seller"])];
       await user.save();
-      roleChanged = true;
     }
 
     const responseData = {
@@ -328,7 +433,7 @@ const getSellerApplicationStatus = async (req, res) => {
       sellerApplication,
     };
 
-    if (roleChanged) {
+    if (sellerApplication.status === "approved") {
       responseData.accessToken = signAccessToken(user);
     }
 
@@ -342,7 +447,8 @@ module.exports = {
   registerUser,
   loginUser,
   adminLogin,
+  refreshSession,
+  logoutSession,
   upgradeToSeller,
   getSellerApplicationStatus,
 };
-

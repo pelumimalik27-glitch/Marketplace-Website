@@ -3,6 +3,8 @@ const {
   registerUser,
   loginUser,
   adminLogin,
+  refreshSession,
+  logoutSession,
   upgradeToSeller,
   getSellerApplicationStatus,
 } = require("./user.controller");
@@ -13,8 +15,12 @@ const authRouter = express.Router();
 authRouter.post("/register", registerUser);
 authRouter.post("/login", loginUser);
 authRouter.post("/admin/login", adminLogin);
+authRouter.post("/refresh", refreshSession);
+authRouter.post("/logout", logoutSession);
 authRouter.put("/upgrade-to-seller", validateUser, upgradeToSeller);
 authRouter.get("/seller-application", validateUser, getSellerApplicationStatus);
 
 module.exports = { authRouter };
+
+
 

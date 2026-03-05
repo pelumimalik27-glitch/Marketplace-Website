@@ -6,9 +6,11 @@ const {
   updateById,
   removeById,
 } = require("./message.controller.js");
+const { validateUser } = require("../../middleware/validate_user");
 
 const messageRouter = express.Router();
 
+messageRouter.use(validateUser);
 messageRouter.post("/", create);
 messageRouter.get("/", list);
 messageRouter.get("/:id", getById);

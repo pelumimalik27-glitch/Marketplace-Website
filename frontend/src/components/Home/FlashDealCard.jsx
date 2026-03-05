@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { formatNaira } from "../../lib/currency";
 
 function FlashDealCard({ product }) {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ function FlashDealCard({ product }) {
         className="w-full h-40 object-cover rounded-lg mb-3" 
       />
       <h1 className="text-sm font-semibold text-gray-900 line-clamp-2">{name}</h1>
-      <p className="text-lg text-orange-700 font-bold mt-2">${price.toFixed(2)}</p>
+      <p className="text-lg text-orange-700 font-bold mt-2">{formatNaira(price)}</p>
     </div>
   );
 }

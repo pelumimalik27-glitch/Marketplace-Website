@@ -6,8 +6,9 @@ import {
   fetchSellerOrders,
   fetchSellerProducts,
 } from "../../lib/sellerApi";
+import { formatNaira } from "../../lib/currency";
 
-const money = (value) => `$${Number(value || 0).toFixed(2)}`;
+const money = (value) => formatNaira(value);
 
 function SellerAnalytics() {
   const navigate = useNavigate();

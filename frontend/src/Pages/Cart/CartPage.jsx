@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { AppContext } from '../../contexts/AppContext';
+import { formatNaira } from '../../lib/currency';
 
 function CartPage() {
   const { cart, removeFromCart, updateQuantity, groupCartBySeller } = useContext(AppContext);
@@ -44,7 +45,7 @@ function CartPage() {
                   <p className="text-sm text-gray-500">Seller ID: {sellerId}</p>
                 </div>
                 <span className="text-sm text-gray-500">
-                  Shipping: {group.shipping === 0 ? 'FREE' : `$${group.shipping}`}
+                  Shipping: {group.shipping === 0 ? 'FREE' : formatNaira(group.shipping)}
                 </span>
               </div>
               
@@ -55,26 +56,26 @@ function CartPage() {
                     
                     <div className="flex-1">
                       <h4 className="font-semibold">{item.name}</h4>
-                      <p className="text-gray-500 text-sm">${item.price.toFixed(2)} each</p>
+                      <p className="text-gray-500 text-sm">{formatNaira(item.price)} each</p>
                       
                       <div className="flex items-center gap-4 mt-3">
                         <div className="flex items-center border rounded">
                           <button 
-                            onClick={() => updateQuantity(parseInt(item.id), item.qty - 1)}
+                            onClick={() => updateQuantity(item.id, item.qty - 1)}
                             className="px-3 py-1 hover:bg-gray-100"
                           >
                             <Minus size={16} />
                           </button>
                           <span className="px-4 py-1 border-x">{item.qty}</span>
                           <button 
-                            onClick={() => updateQuantity(parseInt(item.id), item.qty + 1)}
+                            onClick={() => updateQuantity(item.id, item.qty + 1)}
                             className="px-3 py-1 hover:bg-gray-100"
                           >
                             <Plus size={16} />
                           </button>
                         </div>
                         
-                        <span className="font-bold">${(item.price * item.qty).toFixed(2)}</span>
+                        <span className="font-bold">{formatNaira(item.price * item.qty)}</span>
                         
                         <button 
                           onClick={() => removeFromCart(item.id)}
@@ -92,7 +93,7 @@ function CartPage() {
                 <span className="text-gray-600">
                   Subtotal ({group.items.reduce((sum, i) => sum + i.qty, 0)} items): 
                   <span className="font-bold ml-2">
-                    ${group.items.reduce((sum, i) => sum + (i.price * i.qty), 0).toFixed(2)}
+                    {formatNaira(group.items.reduce((sum, i) => sum + (i.price * i.qty), 0))}
                   </span>
                 </span>
               </div>
@@ -108,17 +109,17 @@ function CartPage() {
             <div className="space-y-4 mb-6">
               <div className="flex justify-between">
                 <span>Subtotal ({totalItems} items)</span>
-                <span className="font-semibold">${subtotal.toFixed(2)}</span>
+                <span className="font-semibold">{formatNaira(subtotal)}</span>
               </div>
               
               <div className="flex justify-between">
                 <span>Shipping</span>
-                <span className="font-semibold">${shipping.toFixed(2)}</span>
+                <span className="font-semibold">{formatNaira(shipping)}</span>
               </div>
               
               <div className="flex justify-between border-t pt-4">
                 <span className="text-lg font-bold">Total</span>
-                <span className="text-2xl font-bold text-orange-600">${total.toFixed(2)}</span>
+                <span className="text-2xl font-bold text-orange-600">{formatNaira(total)}</span>
               </div>
             </div>
             

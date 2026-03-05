@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Hero from "../../components/Home/Hero";
 import TrustSection from "../../components/Home/TrustSection";
-import ShopCategory from "../../components/Home/ShopCategory";
 import FlashDeal from "../../components/Home/FlashDeal";
 import ProductData from "../../components/Home/ProductData";
 import { AppContext } from "../../contexts/AppContext";
@@ -31,9 +30,12 @@ function HomePage() {
   const applicationStatus = application?.status || null;
   const applyAuthPayload = (payload = {}) => {
     if (!payload?.user) return;
-    const currentToken = localStorage.getItem("userToken");
+    const currentToken = localStorage.getItem("userToken") || "";
+    const nextToken = payload?.accessToken || currentToken;
+    if (!nextToken) return;
     handleLogin({
-      token: payload?.accessToken || currentToken,
+      token: nextToken,
+      refreshToken: payload?.refreshToken,
       user: payload.user,
     });
   };
@@ -128,7 +130,8 @@ function HomePage() {
       setShowForm(false);
       setFormData(initialForm);
     } catch (error) {
-      alert(error.message || "Failed to submit seller application");
+      const message = error?.message || "Failed to submit seller application";
+      alert(message);
     } finally {
       setSubmitting(false);
     }
@@ -164,8 +167,6 @@ function HomePage() {
 
         {statusText && <p className="mt-3 text-sm text-orange-200">{statusText}</p>}
       </section>
-
-      <ShopCategory />
       <FlashDeal />
       <ProductData />
 
@@ -251,3 +252,4 @@ function HomePage() {
 }
 
 export default HomePage;
+
